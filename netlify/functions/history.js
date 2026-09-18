@@ -1,4 +1,4 @@
-const { api } = require("./_anthropic");
+const { listMemories } = require("./_anthropic");
 
 // KNOWN LIMITATION: your four agents don't yet write slip records in one
 // consistent structured shape (that's a follow-up task, not done yet).
@@ -14,12 +14,7 @@ exports.handler = async () => {
     const { MEMORY_STORE_ID } = process.env;
     if (!MEMORY_STORE_ID) throw new Error("Missing env var: MEMORY_STORE_ID");
 
-    const result = await api(
-      `/memory_stores/${MEMORY_STORE_ID}/memories?view=full&limit=100`,
-      { method: "GET" }
-    );
-
-    const files = (result.data || [])
+    const files = (await listMemories(MEMORY_STORE_ID))
       .filter((f) => /slip/i.test(f.path) && !/review|preferences/i.test(f.path))
       .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 

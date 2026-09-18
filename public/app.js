@@ -7,6 +7,9 @@
    so you can style and click through it without a backend.
    ============================================================ */
 
+// Bump on every deploy. Shown top-right and appended to every agent prompt.
+const APP_VERSION = 'v0.2.0';
+
 const CONFIG = {
   // Flip to false once your endpoints are live.
   useMock: false,
@@ -106,6 +109,7 @@ function buildAgentMessage(payload) {
       ? `Bankroll: $${payload.bankroll} — size the stake off this.`
       : `No bankroll given for this request — use whatever's already on file, or a small default.`,
     payload.notes ? `Additional instructions: ${payload.notes}` : '',
+    `[${APP_VERSION}]`,
   ];
   return parts.filter(Boolean).join(' ');
 }
@@ -137,52 +141,56 @@ async function requestSlips(payload) {
 
 function pollForSlips(sessionId, { timeoutMs = 180000, intervalMs = 2000 } = {}) {
   return new Promise((resolve, reject) => {
-    let lastEventId = null;
+    let since = null;            // processed_at of newest event seen (API has no "after id")
     const seen = new Set();
-    let lastAgentText = '';
-    let idleTicks = 0;
+    const texts = [];            // every primary-agent message, in order
     const startedAt = Date.now();
+    let busy = false;
+
+    const finish = (fn, arg) => { clearInterval(timer); fn(arg); };
 
     const timer = setInterval(async () => {
+      if (busy) return;          // don't overlap slow polls
+      busy = true;
       try {
         if (Date.now() - startedAt > timeoutMs) {
-          clearInterval(timer);
-          reject(new Error('Timed out waiting for the agent to respond.'));
-          return;
+          return finish(reject, new Error('Timed out waiting for the agent to respond.'));
         }
 
         const qs = new URLSearchParams({ session_id: sessionId });
-        if (lastEventId) qs.set('after', lastEventId);
+        if (since) qs.set('since', since);
         const res = await fetch(`/api/get-events?${qs}`);
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || `Events failed (${res.status})`);
 
-        const events = data.data || data.events || [];
-        let sawIdle = false;
-
-        for (const ev of events) {
+        for (const ev of data.data || []) {
           if (seen.has(ev.id)) continue;
           seen.add(ev.id);
-          lastEventId = ev.id;
+          if (ev.processed_at && (!since || ev.processed_at > since)) since = ev.processed_at;
 
-          if (ev.type === 'agent.message' && !ev.from_agent_name) {
+          if (ev.type === 'agent.message') {
             const text = (ev.content || []).map((c) => c.text || '').join('');
-            if (text) lastAgentText = text;
-          } else if (ev.type === 'session.thread_status_idle' || ev.type === 'session.status_idle') {
-            sawIdle = true;
-          }
-        }
-
-        if (sawIdle) {
-          idleTicks += 1;
-          if (idleTicks >= 2) {
-            clearInterval(timer);
-            resolve(parseAgentReply(lastAgentText));
+            if (text) texts.push(text);
+          } else if (ev.type === 'session.status_idle') {
+            const reason = ev.stop_reason && ev.stop_reason.type;
+            if (reason === 'end_turn') {
+              // Prefer the latest message carrying the JSON block, in case the
+              // agent closed with a short sign-off after it.
+              const withJson = [...texts].reverse().find((t) => t.includes('```json'));
+              return finish(resolve, parseAgentReply(withJson || texts[texts.length - 1] || ''));
+            }
+            return finish(reject, new Error(`Agent stopped early (${reason || 'unknown'}).`));
+          } else if (ev.type === 'session.status_terminated') {
+            return finish(reject, new Error('Agent session terminated.'));
+          } else if (ev.type === 'session.error' && ev.error && ev.error.retry_status &&
+                     ev.error.retry_status.type !== 'retrying') {
+            return finish(reject, new Error(ev.error.message || 'Agent session error.'));
           }
         }
       } catch (err) {
-        clearInterval(timer);
-        reject(err);
+        finish(reject, err);
+      } finally {
+        busy = false;
       }
     }, intervalMs);
   });
@@ -641,6 +649,7 @@ async function loadReview() {
    ============================================================ */
 
 function initControls() {
+  $('#app-version').textContent = APP_VERSION;
   // Slider
   const legs = $('#legs');
   const syncSlider = () => {
