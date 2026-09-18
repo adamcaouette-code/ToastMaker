@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0C0E">
+<title>Slip Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Saira+Condensed:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-bar">
+  <h1 class="wordmark">Slip Builder<span class="dot" aria-hidden="true"></span></h1>
+  <span class="app-bar__meta" id="agent-state">Ready</span>
+</header>
+
+<nav class="tabs" aria-label="Main">
+  <button class="tab is-active" type="button" data-view="generate" aria-current="page">Slip</button>
+  <button class="tab" type="button" data-view="stats">Stats</button>
+  <button class="tab" type="button" data-view="history">History</button>
+  <button class="tab" type="button" data-view="review">Review</button>
+</nav>
+
+<main id="main">
+
+  <!-- ============ GENERATE (home) ============ -->
+  <section class="view is-active" id="view-generate" aria-label="Slip generator">
+    <form id="slip-form" novalidate>
+
+      <!-- Leagues -->
+      <div class="field">
+        <div class="field__head">
+          <label class="field__label" id="leagues-label">Leagues</label>
+          <span class="field__hint">Pick one or more</span>
+        </div>
+
+        <div class="chips-scroller">
+          <div class="chips" id="league-chips" role="group" aria-labelledby="leagues-label" data-state="loading">
+            <span class="chip chip--skeleton" aria-hidden="true"></span>
+            <span class="chip chip--skeleton" aria-hidden="true"></span>
+            <span class="chip chip--skeleton" aria-hidden="true"></span>
+          </div>
+        </div>
+        <p class="empty-note" id="leagues-empty" hidden>No active leagues right now.</p>
+      </div>
+
+      <!-- Parlay legs -->
+      <div class="field">
+        <div class="field__head">
+          <label class="field__label" for="legs">Parlay Legs</label>
+          <output class="value-badge" id="legs-value" for="legs">3</output>
+        </div>
+        <input class="slider" type="range" id="legs" name="legs" min="2" max="6" step="1" value="3"
+               aria-describedby="legs-scale">
+        <div class="scale" id="legs-scale" aria-hidden="true">
+          <span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+        </div>
+      </div>
+
+      <!-- Entry type -->
+      <div class="field">
+        <div class="field__head">
+          <span class="field__label" id="type-label">Entry Type</span>
+        </div>
+        <div class="segmented" role="radiogroup" aria-labelledby="type-label">
+          <input class="sr-only" type="radio" name="entryType" id="type-flex" value="flex" checked>
+          <label class="segmented__opt" for="type-flex">
+            <span class="segmented__title">Flex</span>
+            <span class="segmented__sub">Partial hits pay</span>
+          </label>
+          <input class="sr-only" type="radio" name="entryType" id="type-power" value="power">
+          <label class="segmented__opt" for="type-power">
+            <span class="segmented__title">Power</span>
+            <span class="segmented__sub">All legs or nothing</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Bankroll -->
+      <div class="field">
+        <div class="field__head">
+          <label class="field__label" for="bankroll">Bankroll</label>
+          <span class="field__hint">0 = don't factor it in</span>
+        </div>
+        <div class="money-row">
+          <div class="money">
+            <span class="money__sign" aria-hidden="true">$</span>
+            <input class="money__input" type="number" id="bankroll" name="bankroll" value="0" min="0" step="1"
+                   inputmode="decimal" autocomplete="off">
+            <button class="money__clear" type="button" id="bankroll-clear" aria-label="Reset bankroll to 0">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3l6 6"></path><path d="M9 3l-6 6"></path></svg>
+            </button>
+          </div>
+          <div class="quick-adds">
+            <button class="quick-add" type="button" data-add="1">+$1</button>
+            <button class="quick-add" type="button" data-add="5">+$5</button>
+            <button class="quick-add" type="button" data-add="10">+$10</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="field">
+        <div class="field__head">
+          <label class="field__label" for="notes">Additional Info</label>
+          <span class="field__hint">Optional</span>
+        </div>
+        <textarea class="textarea" id="notes" name="notes" rows="3"
+                  placeholder="e.g. only home runs, include Ja'Marr Chase, no QBs"></textarea>
+      </div>
+
+      <!-- Slip count -->
+      <div class="field">
+        <div class="field__head">
+          <label class="field__label" for="slip-count">How many Slips</label>
+          <span class="field__hint">Bankroll splits across them</span>
+        </div>
+        <div class="stepper">
+          <button class="stepper__btn" type="button" id="slips-minus" aria-label="One fewer slip">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 6h8"></path></svg>
+          </button>
+          <input class="stepper__input" type="number" id="slip-count" name="slipCount" value="1" min="1" max="10" step="1" inputmode="numeric">
+          <button class="stepper__btn" type="button" id="slips-plus" aria-label="One more slip">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8"></path><path d="M2 6h8"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="cta" type="submit" id="generate-btn">
+        <span class="cta__label">Generate Slips</span>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
+      <p class="form-error" id="form-error" role="alert" hidden></p>
+    </form>
+
+    <section class="results" id="results" aria-live="polite" aria-busy="false">
+      <div class="results__empty" id="results-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v16l-7-3.5L5 20z"></path></svg>
+        <p>Set your inputs and generate. Slips come back here.</p>
+      </div>
+    </section>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section class="view" id="view-stats" aria-label="Player stats" hidden>
+    <div class="view__head">
+      <h2 class="view__title">Player Stats</h2>
+      <button class="ghost-btn" type="button" id="refresh-stats">Refresh</button>
+    </div>
+    <div class="chips chips--filters" id="stats-filters" role="group" aria-label="Filter by league"></div>
+    <div id="stats-list"></div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section class="view" id="view-history" aria-label="Slip history" hidden>
+    <div class="view__head">
+      <h2 class="view__title">History</h2>
+      <button class="ghost-btn" type="button" id="refresh-history">Refresh</button>
+    </div>
+    <div class="stat-row" id="history-stats"></div>
+    <div class="chips chips--filters" id="history-filters" role="group" aria-label="Filter history">
+      <button class="chip is-active" type="button" data-filter="all">All</button>
+      <button class="chip" type="button" data-filter="won">Won</button>
+      <button class="chip" type="button" data-filter="lost">Lost</button>
+      <button class="chip" type="button" data-filter="pending">Pending</button>
+    </div>
+    <div id="history-list"></div>
+  </section>
+
+  <!-- ============ REVIEW ============ -->
+  <section class="view" id="view-review" aria-label="Review notes" hidden>
+    <div class="view__head">
+      <h2 class="view__title">Review</h2>
+      <button class="ghost-btn" type="button" id="refresh-review">Refresh</button>
+    </div>
+    <div id="review-list"></div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
