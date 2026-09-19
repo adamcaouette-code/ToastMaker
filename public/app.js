@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.2.6';
+const APP_VERSION = 'v0.2.7';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
