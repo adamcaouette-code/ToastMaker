@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.2.9';
+const APP_VERSION = 'v0.3.0';
 
 // Chip text only; the value sent to the agent stays the API's leagueID.
 const LEAGUE_LABELS = { UEFA_CHAMPIONS_LEAGUE: 'UCL' };
@@ -103,6 +103,13 @@ async function fetchLeagues() {
   return Array.isArray(data) ? data : (data.leagues || []);
 }
 
+// Sent with every request so the app gets cards, not a wall of text, whether or
+// not the agent's Console prompt already says so. Mirrors SLIP SHAPE above.
+const REPLY_FORMAT =
+  'REPLY FORMAT: one short sentence of summary, then END with a single ```json fenced block, nothing after it, no markdown tables. ' +
+  'Shape: {"slips":[{"id":"slip-1","entryType":"flex"|"power","entry":<stake in dollars for this slip>,"multiplier":<payout multiplier>,"payout":<projected payout in dollars>,' +
+  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"more"|"less"}]}]}.';
+
 function buildAgentMessage(payload) {
   const parts = [
     `Build ${payload.slipCount} slip(s).`,
@@ -112,6 +119,7 @@ function buildAgentMessage(payload) {
       ? `Bankroll: $${payload.bankroll} — size the stake off this.`
       : `No bankroll given for this request — use whatever's already on file, or a small default.`,
     payload.notes ? `Additional instructions: ${payload.notes}` : '',
+    REPLY_FORMAT,
     `[${APP_VERSION}]`,
   ];
   return parts.filter(Boolean).join(' ');

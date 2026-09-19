@@ -762,3 +762,6 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* plain-text fallback keeps the agent's line breaks */
+.slip__note { white-space: pre-line; }
