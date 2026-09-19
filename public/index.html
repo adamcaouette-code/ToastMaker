@@ -22,9 +22,7 @@
 
 <nav class="tabs" aria-label="Main">
   <button class="tab is-active" type="button" data-view="generate" aria-current="page">Slip</button>
-  <button class="tab" type="button" data-view="stats">Stats</button>
   <button class="tab" type="button" data-view="history">History</button>
-  <button class="tab" type="button" data-view="review">Review</button>
 </nav>
 
 <main id="main">
@@ -148,16 +146,6 @@
     </section>
   </section>
 
-  <!-- ============ STATS ============ -->
-  <section class="view" id="view-stats" aria-label="Player stats" hidden>
-    <div class="view__head">
-      <h2 class="view__title">Player Stats</h2>
-      <button class="ghost-btn" type="button" id="refresh-stats">Refresh</button>
-    </div>
-    <div class="chips chips--filters" id="stats-filters" role="group" aria-label="Filter by league"></div>
-    <div id="stats-list"></div>
-  </section>
-
   <!-- ============ HISTORY ============ -->
   <section class="view" id="view-history" aria-label="Slip history" hidden>
     <div class="view__head">
@@ -172,15 +160,6 @@
       <button class="chip" type="button" data-filter="pending">Pending</button>
     </div>
     <div id="history-list"></div>
-  </section>
-
-  <!-- ============ REVIEW ============ -->
-  <section class="view" id="view-review" aria-label="Review notes" hidden>
-    <div class="view__head">
-      <h2 class="view__title">Review</h2>
-      <button class="ghost-btn" type="button" id="refresh-review">Refresh</button>
-    </div>
-    <div id="review-list"></div>
   </section>
 
 </main>

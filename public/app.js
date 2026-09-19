@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.10.0';
+const APP_VERSION = 'v0.10.1';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -18,8 +18,6 @@ const CONFIG = {
     leagues:  '/api/leagues',          // GET  -> { leagues: ["MLB","NFL"] }  (or a bare array)
     generate: '/api/generate-slips',   // POST -> { slips: [...] }            (see SLIP SHAPE below)
     history:  '/api/history',          // GET  -> { slips: [...] }
-    review:   '/api/review',           // GET  -> { notes:  [...] }
-    stats:    '/api/player-stats',     // GET  -> { players:[...] }           (see PLAYER SHAPE below)
   },
 
   // ESPN headshots: <base><espnId>.png. Used when a leg has espnId + league.
@@ -61,17 +59,6 @@ const CONFIG = {
    }
    If your agent answers with plain text instead, send
    { "text": "..." } and it renders in a plain card.
-
-   PLAYER SHAPE for the Stats tab (/api/player-stats):
-   {
-     "players": [{
-       "player": "Ja'Marr Chase", "league": "NFL", "team": "CIN",
-       "position": "WR", "opponent": "vs BAL", "espnId": "4362628",
-       "stat": "Receiving Yards", "line": 79.5,
-       "season": 84.2, "last5": 91.0, "hitRate": 60,
-       "log": [64, 93, 71, 118, 82, 56, 104, 88, 76, 131]   // oldest -> newest
-     }]
-   }
 ------------------------------------------------------------ */
 
 const $ = (sel) => document.querySelector(sel);
@@ -83,8 +70,6 @@ const state = {
   generating: false,
   historyFilter: 'all',
   historyCache: null,
-  statsFilter: 'all',
-  statsCache: null,
 };
 
 /* ============================================================
@@ -224,9 +209,7 @@ function parseAgentReply(text) {
 async function fetchFeed(kind) {
   if (CONFIG.useMock) {
     await wait(600);
-    if (kind === 'history') return { slips: mockHistory() };
-    if (kind === 'stats') return { players: mockPlayerStats() };
-    return { notes: mockNotes() };
+    return { slips: mockHistory() };
   }
   const res = await fetch(CONFIG.endpoints[kind]);
   if (!res.ok) throw new Error(`${kind} failed (${res.status})`);
@@ -674,118 +657,7 @@ function headshotUrl(leg) {
 }
 
 /* ============================================================
-   5. Stats tab — the players the agent has been using
-   ============================================================ */
-
-async function loadStats() {
-  const list = $('#stats-list');
-  list.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div>';
-  try {
-    const data = await fetchFeed('stats');
-    state.statsCache = Array.isArray(data) ? data : (data.players || []);
-    renderStatsFilters();
-    renderStats();
-  } catch (err) {
-    list.innerHTML = `<p class="form-error">${escapeHtml(err.message)}</p>`;
-  }
-}
-
-function renderStatsFilters() {
-  const leagues = Array.from(new Set((state.statsCache || []).map((p) => p.league).filter(Boolean)));
-  if (!leagues.includes(state.statsFilter)) state.statsFilter = 'all';
-
-  $('#stats-filters').innerHTML = ['all', ...leagues].map((key) => {
-    const active = key === state.statsFilter ? ' is-active' : '';
-    return `<button class="chip${active}" type="button" data-filter="${escapeAttr(key)}">${key === 'all' ? 'All' : escapeHtml(key)}</button>`;
-  }).join('');
-
-  $$('#stats-filters .chip').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      state.statsFilter = chip.dataset.filter;
-      renderStatsFilters();
-      renderStats();
-    });
-  });
-}
-
-function renderStats() {
-  const list = $('#stats-list');
-  const all = state.statsCache || [];
-  const players = state.statsFilter === 'all' ? all : all.filter((p) => p.league === state.statsFilter);
-
-  if (!players.length) {
-    list.innerHTML = '<p class="list-empty">No player stats yet.</p>';
-    return;
-  }
-
-  list.innerHTML = players.map(playerCard).join('');
-  wireAvatarFallbacks(list);
-}
-
-function playerCard(p) {
-  const meta = [p.team, p.position, p.opponent].filter(Boolean).join(' · ');
-  const hit = Number(p.hitRate);
-  const hitClass = Number.isFinite(hit) ? (hit >= 60 ? ' is-up' : hit < 50 ? ' is-down' : '') : '';
-  return `<article class="pcard">
-    <div class="pcard__top">
-      ${avatar(p)}
-      <div class="pcard__body">
-        <span class="pcard__name">${escapeHtml(p.player || '')}</span>
-        <span class="pcard__meta">${escapeHtml(meta)}</span>
-      </div>
-      <div class="pcard__line">
-        <span class="k">${escapeHtml(p.stat || 'Line')}</span>
-        <span class="v">${p.line != null ? escapeHtml(String(p.line)) : '—'}</span>
-      </div>
-    </div>
-
-    <div class="micro">
-      <div class="micro__cell">
-        <span class="micro__k">Season</span>
-        <span class="micro__v">${fmtAvg(p.season)}</span>
-      </div>
-      <div class="micro__cell">
-        <span class="micro__k">Last 5</span>
-        <span class="micro__v">${fmtAvg(p.last5)}</span>
-      </div>
-      <div class="micro__cell">
-        <span class="micro__k">Hit rate</span>
-        <span class="micro__v${hitClass}">${Number.isFinite(hit) ? `${hit}%` : '—'}</span>
-      </div>
-    </div>
-
-    ${sparkline(p)}
-  </article>`;
-}
-
-// Last-10 game log: bars over the line take the accent, the dashed rule is the line.
-function sparkline(p) {
-  const log = Array.isArray(p.log) ? p.log : [];
-  if (!log.length) return '';
-
-  const line = Number(p.line);
-  const peak = Math.max(...log, Number.isFinite(line) ? line : 0) || 1;
-  const bars = log.map((v) => {
-    const h = Math.max(3, Math.round((Number(v) / peak) * 40));
-    const over = Number.isFinite(line) && Number(v) > line;
-    return `<span class="spark__bar${over ? ' is-over' : ''}" style="height:${h}px" title="${escapeAttr(String(v))}"></span>`;
-  }).join('');
-
-  const lineBottom = Number.isFinite(line) ? Math.round((line / peak) * 40) : null;
-  const overs = Number.isFinite(line) ? log.filter((v) => Number(v) > line).length : 0;
-
-  return `<div class="spark" role="img" aria-label="Last ${log.length} games: ${escapeAttr(log.join(', '))}">
-      ${lineBottom != null ? `<span class="spark__line" style="bottom:${lineBottom}px"></span>` : ''}
-      ${bars}
-    </div>
-    <div class="spark__foot">
-      <span>Last ${log.length}</span>
-      <span class="mono">${overs} over · ${log.length - overs} under</span>
-    </div>`;
-}
-
-/* ============================================================
-   6. History + Review
+   5. History
    ============================================================ */
 
 async function loadHistory() {
@@ -878,26 +750,6 @@ function resultLine(leg) {
   </div>`;
 }
 
-async function loadReview() {
-  const list = $('#review-list');
-  list.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card"></div>';
-  try {
-    const data = await fetchFeed('review');
-    const notes = Array.isArray(data) ? data : (data.notes || []);
-    list.innerHTML = notes.length
-      ? notes.map((n) => `<article class="note">
-          <div class="note__head">
-            <span class="note__title">${escapeHtml(n.title || 'Note')}</span>
-            <span class="note__date">${escapeHtml(n.date || '')}</span>
-          </div>
-          <p class="note__body">${escapeHtml(n.body || '')}</p>
-        </article>`).join('')
-      : '<p class="list-empty">No notes yet.</p>';
-  } catch (err) {
-    list.innerHTML = `<p class="form-error">${escapeHtml(err.message)}</p>`;
-  }
-}
-
 /* ============================================================
    6. Controls
    ============================================================ */
@@ -954,9 +806,7 @@ function initControls() {
     });
   });
 
-  $('#refresh-stats').addEventListener('click', loadStats);
   $('#refresh-history').addEventListener('click', loadHistory);
-  $('#refresh-review').addEventListener('click', loadReview);
 }
 
 function switchView(name) {
@@ -973,9 +823,7 @@ function switchView(name) {
   });
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 
-  if (name === 'stats' && !state.statsCache) loadStats();
   if (name === 'history' && !state.historyCache) loadHistory();
-  if (name === 'review' && !$('#review-list').children.length) loadReview();
 }
 
 /* ============================================================
@@ -1059,30 +907,6 @@ function mockHistory() {
         { player: 'Gunnar Henderson', pick: 'under', line: 1.5, result: null, status: 'open' },
       ],
     },
-  ];
-}
-
-function mockPlayerStats() {
-  return [
-    { player: "Ja'Marr Chase", league: 'NFL', team: 'CIN', position: 'WR', opponent: 'vs BAL', espnId: '4362628',
-      stat: 'Receiving Yards', line: 79.5, season: 84.2, last5: 91.0, hitRate: 60, log: [64, 93, 71, 118, 82, 56, 104, 88, 76, 131] },
-    { player: 'Bijan Robinson', league: 'NFL', team: 'ATL', position: 'RB', opponent: 'at CAR', espnId: '4430807',
-      stat: 'Rushing Yards', line: 71.5, season: 76.8, last5: 69.4, hitRate: 50, log: [58, 84, 66, 73, 92, 47, 70, 61, 88, 54] },
-    { player: 'Justin Jefferson', league: 'NFL', team: 'MIN', position: 'WR', opponent: 'vs GB', espnId: '4262921',
-      stat: 'Receptions', line: 6.5, season: 7.1, last5: 6.8, hitRate: 70, log: [8, 5, 9, 7, 6, 10, 4, 7, 8, 6] },
-    { player: 'Patrick Mahomes', league: 'NFL', team: 'KC', position: 'QB', opponent: 'at DEN', espnId: '3139477',
-      stat: 'Passing Yards', line: 271.5, season: 268.4, last5: 284.0, hitRate: 50, log: [248, 312, 266, 289, 231, 305, 254, 278, 296, 262] },
-    { player: 'Shohei Ohtani', league: 'MLB', team: 'LAD', position: 'DH', opponent: 'vs SD', espnId: '39832',
-      stat: 'Total Bases', line: 1.5, season: 1.9, last5: 2.2, hitRate: 60, log: [1, 4, 0, 2, 3, 1, 2, 0, 5, 2] },
-    { player: 'Aaron Judge', league: 'MLB', team: 'NYY', position: 'RF', opponent: 'at BOS', espnId: '33192',
-      stat: 'Home Runs', line: 0.5, season: 0.6, last5: 0.8, hitRate: 40, log: [0, 1, 0, 0, 2, 1, 0, 0, 1, 0] },
-  ];
-}
-
-function mockNotes() {
-  return [
-    { id: 'n1', title: 'Week 2 review', date: 'Sep 15', body: 'Receiving-yard overs on high-target WRs carried the week. The rushing-yard legs were the weak spot — three of four came in under.\n\nAdjustment: cap slips at one RB rushing leg.' },
-    { id: 'n2', title: 'Flex vs Power', date: 'Sep 12', body: 'Flex 3-leg at 2.25x kept the bankroll flat through a 5-slip cold stretch. Power only makes sense when every leg clears 70% hit rate.' },
   ];
 }
 

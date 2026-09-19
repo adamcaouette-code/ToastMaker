@@ -84,7 +84,7 @@ button { cursor: pointer; }
   top: calc(env(safe-area-inset-top) + 35px);
   z-index: 19;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   background: rgba(11, 12, 14, 0.94);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
@@ -644,35 +644,6 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   line-height: 1.45;
 }
 
-/* ---------- Player stat card ---------- */
-.pcard {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 11px;
-  margin-bottom: 9px;
-}
-.pcard__top { display: flex; align-items: center; gap: 9px; }
-.pcard__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pcard__name {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pcard__meta { font-size: 10px; color: var(--muted); }
-.pcard__line { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.pcard__line .k {
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.pcard__line .v { font-family: var(--mono); font-weight: 600; font-size: 17px; line-height: 1; }
-
 .micro {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -697,30 +668,6 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .micro__v { font-family: var(--mono); font-weight: 600; font-size: 14px; line-height: 1; }
 .micro__v.is-up { color: var(--accent); }
 .micro__v.is-down { color: var(--red); }
-
-.spark {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 42px;
-  margin-top: 10px;
-}
-.spark__bar { flex: 1; border-radius: 2px; background: #343A42; }
-.spark__bar.is-over { background: var(--accent); }
-.spark__line {
-  position: absolute;
-  left: 0; right: 0;
-  border-top: 1px dashed #6B727C;
-}
-.spark__foot {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-  font-size: 9.5px;
-  color: var(--muted);
-}
-.spark__foot .mono { font-family: var(--mono); }
 
 /* ---------- History ---------- */
 .stat-row {
@@ -763,31 +710,6 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .result-line__name { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .result-line__pick { font-size: 10px; color: var(--muted); }
 .result-line__val { width: 42px; text-align: right; font-family: var(--mono); font-weight: 600; font-size: 12px; }
-
-/* ---------- Review ---------- */
-.note {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 11px;
-  margin-bottom: 9px;
-}
-.note__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 9px;
-  margin-bottom: 6px;
-}
-.note__title {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.note__date { font-size: 10px; color: var(--muted); }
-.note__body { margin: 0; font-size: 12.5px; line-height: 1.5; color: #C6CCD4; white-space: pre-line; }
 
 .list-empty { padding: 32px 18px; text-align: center; color: var(--muted); font-size: 12px; }
 .ghost-btn {

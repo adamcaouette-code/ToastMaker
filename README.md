@@ -9,23 +9,10 @@
   its reply.
 - **Leagues chips + lines.** Come from PrizePicks (the default source): the chips are the per-game boards it's posting, and Generate fetches those leagues' real lines and hands them to the agent. SportsGameOdds is supporting data only. PrizePicks has no official API — this uses the endpoint its own web app calls (`partner-api.prizepicks.com`), so it can break without warning. It fails loudly (clear error, no session started) instead of returning empty lines. `GET /api/prizepicks-lines?league=MLB` shows the full board including goblin/demon lines. Tests: `node --test test/prizepicks.test.js`.
 - **Headshots.** After slips render, `POST /api/headshots` resolves each player to an ESPN athlete (search + strict name matching from `player-match.mjs`, copied from prizepicks-tracker) and fills in the photo. No confident match = silhouette, never a guess. Tests: `node --test test/headshots.test.mjs`.
-- **Player stats dropdown.** Tap a player on a slip card: the row highlights and a panel opens with a large headshot, the bet's stat over the last 10 games (season avg, last-5 avg, how many cleared the line, bar chart) and per-game season averages. `POST /api/player-stats` (ESPN game logs; a player it can't match confidently shows "no confident ESPN match", never someone else's numbers). The bet-stat comparison is mapped for common MLB/NFL/NBA/WNBA stats; anything else still gets the season-average grid. Tests: `node --test test/player-stats.test.mjs`.
-- **Review tab.** Reads any memory file with "review" in its name and
-  shows it as a note card.
+- **History tab.** Every real Generate is saved as a record in the memory store and listed here (see "History and the saved-slip format" below).
+- **Player stats dropdown.** Tap a player on a slip card: the row highlights and a panel opens with a large headshot, the bet's stat over the last 5 games (season avg, last-5 avg, how many cleared the line, a bar chart with each opponent's logo, the actual stat and the date, and the agent's hit chance and reasoning) and per-game season averages. `POST /api/player-stats` (ESPN game logs; a player it can't match confidently shows "no confident ESPN match", never someone else's numbers). The bet-stat comparison is mapped for common MLB/NFL/NBA/WNBA stats; anything else still gets the season-average grid. Tests: `node --test test/player-stats.test.mjs`.
 
-**Working, but rough — needs a follow-up you already know about:**
-- **History tab.** Your four agents don't yet write slip records in one
-  consistent format, so this can only build a full card if a memory file
-  happens to contain a matching JSON block. Anything else shows as a
-  plain note instead of a proper win/loss card. Fixing this means
-  standardizing what Slip Builder / Bet-Sizing / Results-Logger write —
-  a task we've flagged before, not done yet.
-
-**Not built — was out of scope on purpose:**
-- **Stats tab** (player drilldown with hit-rate charts). Design's export
-  included this with mock data; the function here just returns an empty
-  list so it doesn't error. Building it for real means deciding which
-  players it should show, which wasn't part of the original brief.
+The app has two tabs, Slip and History.
 
 ## Required environment variables
 

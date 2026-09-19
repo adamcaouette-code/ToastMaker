@@ -2,8 +2,6 @@
 //   -> the player card behind a slip leg: ESPN match + headshot, the bet's stat
 //      over recent games (season avg, last-5 avg, hit rate vs the line), and a
 //      per-game season-average grid for every counting stat ESPN logs.
-// GET  /api/player-stats -> { players: [] } (the old Stats-tab stub, kept so
-//      that tab's empty state still works).
 //
 // No confident ESPN match => { matched: false }, never someone else's numbers.
 // ESPN errors are surfaced as 502s, not silently turned into "no stats".
@@ -129,8 +127,7 @@ export function buildCard({ games, names, labels }, { stat, line, pick }) {
 
 export const handler = async (event) => {
   const reply = (statusCode, body) => ({ statusCode, body: JSON.stringify(body) });
-  if (event.httpMethod === "GET") return reply(200, { players: [] });
-  if (event.httpMethod !== "POST") return reply(405, { error: "GET or POST only" });
+  if (event.httpMethod !== "POST") return reply(405, { error: "POST only" });
 
   let body;
   try {
