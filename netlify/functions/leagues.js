@@ -36,20 +36,29 @@ exports.handler = async (event) => {
     const until = new Date(Date.now() + 36 * 3600 * 1000).toISOString();
     const qs = new URLSearchParams({ finalized: "false", oddsAvailable: "true", startsBefore: until, limit: "1" });
 
+    // Sequential with a pause + one retry on 429: this plan rejects bursts.
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const errors = [];
-    const checks = await Promise.all(
-      ids.map((id) =>
-        get(`/events?leagueID=${id}&${qs}`)
-          .then((d) => (Array.isArray(d.data) && d.data.length ? id : null))
-          .catch((e) => { errors.push(`${id}: ${e.message}`); return null; })
-      )
-    );
-    const leagues = checks.filter(Boolean).sort();
+    const leagues = [];
+    for (const id of ids) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const d = await get(`/events?leagueID=${id}&${qs}`);
+          if (Array.isArray(d.data) && d.data.length) leagues.push(id);
+          break;
+        } catch (e) {
+          if (attempt === 1 || !e.message.includes("429")) errors.push(`${id}: ${e.message}`);
+          else await sleep(1500);
+        }
+      }
+      await sleep(300);
+    }
+    leagues.sort();
     if (event.queryStringParameters?.debug) {
       const sample = JSON.stringify(raw).slice(0, 300);
-      return { statusCode: 200, body: JSON.stringify({ leagues, leagueCount: ids.length, failed: errors.length, errors: errors.slice(0, 3), sample }) };
+      return { statusCode: 200, body: JSON.stringify({ leagues, leagueCount: ids.length, ids, failed: errors.length, errors: errors.slice(0, 3), sample }) };
     }
-    cache = { at: Date.now(), leagues };
+    if (!errors.length) cache = { at: Date.now(), leagues }; // never cache a partial result
     return { statusCode: 200, headers, body: JSON.stringify({ leagues }) };
   } catch (err) {
     console.error(err);
