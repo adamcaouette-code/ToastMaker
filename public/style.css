@@ -570,7 +570,10 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 }
 .leg-wrap.is-open .leg__name { color: var(--accent); }
 .leg-wrap.is-open .leg > .avatar,
-.leg-wrap.is-open .leg > .leg__team { display: none; }
+.leg-wrap.is-open .leg > .leg__team,
+.leg-wrap.is-open .leg > .leg__body { display: none; }
+.leg-wrap.is-open .leg::before { content: "Tap to close"; margin-right: auto; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.leg-wrap.is-open.panel-ready .leg__reasoning { display: none; }
 .avatar {
   /* no circle/border/background: the ESPN cutout shows uncropped (they're ~4:3) */
   width: 68px; height: 50px;
@@ -807,16 +810,26 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 
 /* ---------- player stats dropdown ---------- */
 .leg__panel { padding: 4px 0 14px; }
-.pstat__head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
-.leg__team--hero { flex: 0 1 120px; width: 120px; min-width: 56px; height: 120px; margin-left: auto; align-self: center; }
-.pstat__head > div { flex: 1 1 104px; min-width: 104px; }
-.pstat__shot { flex: 0 1 148px; width: 148px; min-width: 80px; height: 111px; }
+.pstat__head { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(104px, 1.3fr) minmax(56px, 0.9fr); align-items: center; gap: 10px; margin-bottom: 10px; }
+.leg__team--hero { width: 100%; max-width: 130px; height: auto; aspect-ratio: 1; justify-self: end; }
+.pstat__id { text-align: center; min-width: 0; }
+.pstat__shot { width: 100%; max-width: 160px; height: auto; aspect-ratio: 4 / 3; justify-self: start; }
 .pstat__shot svg { width: 80px; height: 80px; }
 .pstat__name { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; }
-.pstat__sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.pstat__league { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; color: var(--muted); margin-top: 5px; }
+.pstat__team { font-size: 13px; color: var(--text); opacity: 0.85; margin-top: 3px; }
+.pstat__proprow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: end; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.pstat__proprow span { display: block; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.pstat__proprow b { font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: 0.03em; }
+.pstat__propline { font-family: var(--mono) !important; font-size: 18px !important; }
+.pstat__propdir { text-transform: uppercase; }
+.pstat__propdir.is-more { color: var(--accent); }
+.pstat__propdir.is-less { color: var(--ice); }
+.pstat__why { margin: 4px 0 14px; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; }
+.pstat__whyh { font-family: var(--display); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.pstat__why p { margin: 0; font-size: 12px; line-height: 1.5; color: #C6CCD4; }
 .pstat__msg { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 .pstat__prop { margin-bottom: 12px; }
-.pstat__proptitle { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
 .pstat__kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 .pstat__kpis > div { background: var(--surface-2); border-radius: 8px; padding: 7px 8px; display: flex; flex-direction: column; gap: 2px; }
 .pstat__kpis b { font-family: var(--mono); font-weight: 600; font-size: 15px; }

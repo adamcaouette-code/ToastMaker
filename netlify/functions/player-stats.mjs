@@ -153,7 +153,7 @@ export const handler = async (event) => {
     if (!res.ok) throw new Error(`ESPN gamelog ${res.status}`);
     const card = buildCard(parseGamelog(await res.json()), { stat, line, pick });
 
-    return reply(200, { matched: true, player: athlete.matchedName, espnId: athlete.id, headshot: athlete.headshot, ...card });
+    return reply(200, { matched: true, player: athlete.matchedName, espnId: athlete.id, team: athlete.team, headshot: athlete.headshot, ...card });
   } catch (err) {
     console.error(err);
     return reply(502, { error: `ESPN: ${err.message}` });

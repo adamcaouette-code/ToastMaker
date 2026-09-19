@@ -20,7 +20,7 @@ export const ESPN = {
   NCAAB: ["basketball", "mens-college-basketball"],
 };
 
-// slug|name -> {id, headshot, matchedName} | null, per warm instance. "No
+// slug|name -> {id, headshot, matchedName, team} | null, per warm instance. "No
 // confident match" (null) is cached too; errors are NOT cached.
 const cache = new Map();
 
@@ -36,9 +36,14 @@ export async function resolveAthlete(league, name) {
   if (!res.ok) throw new Error(`ESPN search ${res.status}`);
   const items = (await res.json())?.items || [];
 
-  const hit = matchPlayer(buildIndex(items.map((i) => [i.displayName, i.id])), name);
+  const hit = matchPlayer(buildIndex(items.map((i) => [i.displayName, i])), name);
   const found = hit
-    ? { id: hit.value, matchedName: hit.matchedName, headshot: `https://a.espncdn.com/i/headshots/${slug}/players/full/${hit.value}.png` }
+    ? {
+        id: hit.value.id,
+        matchedName: hit.matchedName,
+        team: hit.value.teamRelationships?.[0]?.displayName || null, // e.g. "Cincinnati Bengals"
+        headshot: `https://a.espncdn.com/i/headshots/${slug}/players/full/${hit.value.id}.png`,
+      }
     : null;
   cache.set(key, found);
   return found;

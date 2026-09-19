@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.7.2';
+const APP_VERSION = 'v0.8.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -455,7 +455,7 @@ function legRow(leg) {
 
   // Tapping a leg opens its stats panel (see togglePlayer). data-* carries what /api/player-stats needs.
   const data = `data-player="${escapeAttr(leg.player || '')}" data-league="${escapeAttr(leg.league || '')}" data-stat="${escapeAttr(leg.stat || '')}" ` +
-    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(isOverPick(leg.pick) ? 'over' : 'under')}" data-team="${escapeAttr(leg.team || '')}"`;
+    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(isOverPick(leg.pick) ? 'over' : 'under')}" data-team="${escapeAttr(leg.team || '')}" data-why="${escapeAttr(why)}"`;
 
   return `<div class="leg-wrap">
   <div class="leg" role="button" tabindex="0" aria-expanded="false" ${data}>
@@ -516,6 +516,7 @@ async function togglePlayer(leg) {
     }
     panel.innerHTML = playerPanel(playerCache.get(key), d);
     panel.dataset.loaded = '1';
+    wrap.classList.add('panel-ready'); // panel now carries the reasoning; hide the row's copy
     wireAvatarFallbacks(panel);
   } catch (err) {
     panel.innerHTML = `<p class="pstat__msg">Couldn't load stats — ${escapeHtml(err.message)}</p>`;
@@ -524,15 +525,34 @@ async function togglePlayer(leg) {
 
 function playerPanel(s, d) {
   const shot = s.headshot ? `<img src="${escapeAttr(s.headshot)}" alt="">` : SILHOUETTE;
+  const teamName = s.team || d.team || '';
+
+  // Header: headshot | centered name / league / full team name | team logo
   const head = `<div class="pstat__head">
       <span class="pstat__shot avatar">${shot}</span>
-      <div><div class="pstat__name">${escapeHtml(s.player || d.player)}</div>
-      <div class="pstat__sub">${escapeHtml([d.team, d.league].filter(Boolean).join(' · '))}${s.gamesPlayed ? ` · ${s.gamesPlayed} game${s.gamesPlayed === 1 ? '' : 's'}` : ''}</div></div>
+      <div class="pstat__id">
+        <div class="pstat__name">${escapeHtml(s.player || d.player)}</div>
+        <div class="pstat__league">${escapeHtml(d.league)}</div>
+        <div class="pstat__team">${escapeHtml(teamName)}</div>
+      </div>
       ${teamLogo({ league: d.league, team: d.team }, true)}
     </div>`;
 
+  // The bet itself, from the leg (so it shows even when there's no game log to compare)
+  const over = isOverPick(d.pick);
+  const propRow = `<div class="pstat__proprow">
+      <div><span>Prop</span><b>${escapeHtml(d.stat || '—')}</b></div>
+      <b class="pstat__propline">${d.line !== '' ? escapeHtml(d.line) : '—'}</b>
+      <b class="pstat__propdir ${over ? 'is-more' : 'is-less'}">${pickLabel(d.pick)}</b>
+    </div>`;
+
+  const why = d.why
+    ? `<div class="pstat__why"><div class="pstat__whyh">Why?</div><p>${escapeHtml(d.why)}</p></div>`
+    : '';
+  const top = head + propRow + why;
+
   if (!s.matched) {
-    return head + `<p class="pstat__msg">${escapeHtml(s.reason || 'No stats available for this player.')}</p>`;
+    return top + `<p class="pstat__msg">${escapeHtml(s.reason || 'No stats available for this player.')}</p>`;
   }
 
   const num = (x) => (x == null ? '—' : String(x));
@@ -547,7 +567,6 @@ function playerPanel(s, d) {
       </div>`).join('');
     const lineTop = p.line != null ? `<div class="pstat__line" style="bottom:${(p.line / max) * 100}%"><span>${escapeHtml(String(p.line))}</span></div>` : '';
     body += `<div class="pstat__prop">
-        <div class="pstat__proptitle">${escapeHtml(p.stat)} · line ${num(p.line)} · ${pickLabel(p.pick)}</div>
         <div class="pstat__kpis">
           <div><b>${num(p.seasonAvg)}</b><span>Season avg</span></div>
           <div><b>${num(p.last5Avg)}</b><span>Last 5 avg</span></div>
@@ -559,10 +578,11 @@ function playerPanel(s, d) {
     body += `<p class="pstat__msg">No game-by-game comparison for “${escapeHtml(d.stat)}” yet — season averages below.</p>`;
   }
   if (s.averages && s.averages.length) {
-    body += `<div class="pstat__avgs"><div class="pstat__avgshead"><span>Per game</span><span>Season</span><span>Last 5</span></div>` +
+    const games = s.gamesPlayed ? ` · ${s.gamesPlayed} game${s.gamesPlayed === 1 ? '' : 's'}` : '';
+    body += `<div class="pstat__avgs"><div class="pstat__avgshead"><span>Per game${games}</span><span>Season</span><span>Last 5</span></div>` +
       s.averages.map((a) => `<div><span>${escapeHtml(a.label)}</span><b>${num(a.season)}</b><b>${num(a.last5)}</b></div>`).join('') + `</div>`;
   }
-  return head + body;
+  return top + body;
 }
 
 // ESPN team logo for the player's team. PrizePicks abbreviations occasionally
