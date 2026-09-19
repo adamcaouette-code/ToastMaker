@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.5.3';
+const APP_VERSION = 'v0.6.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -445,7 +445,12 @@ function legRow(leg) {
   const meta = [leg.team, leg.opponent, leg.stat].filter(Boolean).join(' · ');
   const league = leg.league ? `<span class="leg__league">${escapeHtml(String(leg.league).toUpperCase())}</span>` : '';
 
-  return `<div class="leg">
+  // Tapping a leg opens its stats panel (see togglePlayer). data-* carries what /api/player-stats needs.
+  const data = `data-player="${escapeAttr(leg.player || '')}" data-league="${escapeAttr(leg.league || '')}" data-stat="${escapeAttr(leg.stat || '')}" ` +
+    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(leg.pick || 'more')}" data-team="${escapeAttr(leg.team || '')}"`;
+
+  return `<div class="leg-wrap">
+  <div class="leg" role="button" tabindex="0" aria-expanded="false" ${data}>
     ${avatar(leg)}
     <div class="leg__body">
       <span class="leg__title"><span class="leg__name">${escapeHtml(leg.player || 'Unknown player')}</span>${league}</span>
@@ -456,7 +461,98 @@ function legRow(leg) {
       <span class="leg__line">${leg.line != null ? escapeHtml(String(leg.line)) : '—'}</span>
       <span class="leg__dir ${isMore ? 'is-more' : 'is-less'}">${arrow}${isMore ? 'More' : 'Less'}</span>
     </div>
+  </div>
+  <div class="leg__panel" hidden></div>
   </div>`;
+}
+
+/* ------------------------------------------------------------
+   Player stats dropdown: tap a leg -> highlight it and open a panel with a
+   large headshot, the bet's stat over recent games, and season averages.
+   Data: POST /api/player-stats (ESPN; strict name match, else "no match").
+------------------------------------------------------------ */
+
+const playerCache = new Map();
+
+function onLegActivate(event) {
+  if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+  const leg = event.target.closest('.leg[data-player]');
+  if (!leg) return;
+  event.preventDefault();
+  togglePlayer(leg);
+}
+
+async function togglePlayer(leg) {
+  const wrap = leg.closest('.leg-wrap');
+  const panel = wrap.querySelector('.leg__panel');
+  const open = !wrap.classList.contains('is-open');
+  wrap.classList.toggle('is-open', open);
+  leg.setAttribute('aria-expanded', String(open));
+  panel.hidden = !open;
+  if (!open || panel.dataset.loaded) return;
+
+  const d = leg.dataset;
+  panel.innerHTML = '<p class="pstat__msg">Loading stats…</p>';
+  const key = [d.league, d.player, d.stat, d.line, d.pick].join('|');
+  try {
+    if (!playerCache.has(key)) {
+      const res = await fetch('/api/player-stats', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ league: d.league, player: d.player, stat: d.stat, line: d.line === '' ? null : Number(d.line), pick: d.pick }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      playerCache.set(key, data);
+    }
+    panel.innerHTML = playerPanel(playerCache.get(key), d);
+    panel.dataset.loaded = '1';
+    wireAvatarFallbacks(panel);
+  } catch (err) {
+    panel.innerHTML = `<p class="pstat__msg">Couldn't load stats — ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function playerPanel(s, d) {
+  const shot = s.headshot ? `<img src="${escapeAttr(s.headshot)}" alt="">` : SILHOUETTE;
+  const head = `<div class="pstat__head">
+      <span class="pstat__shot avatar">${shot}</span>
+      <div><div class="pstat__name">${escapeHtml(s.player || d.player)}</div>
+      <div class="pstat__sub">${escapeHtml([d.team, d.league].filter(Boolean).join(' · '))}${s.gamesPlayed ? ` · ${s.gamesPlayed} game${s.gamesPlayed === 1 ? '' : 's'}` : ''}</div></div>
+    </div>`;
+
+  if (!s.matched) {
+    return head + `<p class="pstat__msg">${escapeHtml(s.reason || 'No stats available for this player.')}</p>`;
+  }
+
+  const num = (x) => (x == null ? '—' : String(x));
+  let body = '';
+  const p = s.prop;
+  if (p) {
+    const max = Math.max(...p.log.map((g) => g.v), p.line || 0) * 1.15 || 1;
+    const bars = p.log.map((g) => `<div class="pstat__col" title="${escapeAttr(`${g.date.slice(0, 10)} ${g.opp}`)}">
+        <span class="pstat__val">${num(g.v)}</span>
+        <div class="pstat__bar ${g.hit ? 'is-hit' : ''}" style="height:${Math.max(3, (g.v / max) * 100)}%"></div>
+        <span class="pstat__opp">${escapeHtml(g.opp)}</span>
+      </div>`).join('');
+    const lineTop = p.line != null ? `<div class="pstat__line" style="bottom:${(p.line / max) * 100}%"><span>${escapeHtml(String(p.line))}</span></div>` : '';
+    body += `<div class="pstat__prop">
+        <div class="pstat__proptitle">${escapeHtml(p.stat)} · line ${num(p.line)} · ${p.pick === 'less' ? 'Less' : 'More'}</div>
+        <div class="pstat__kpis">
+          <div><b>${num(p.seasonAvg)}</b><span>Season avg</span></div>
+          <div><b>${num(p.last5Avg)}</b><span>Last 5 avg</span></div>
+          <div><b>${p.hits}/${p.of}</b><span>Hit last ${p.of}</span></div>
+        </div>
+        <div class="pstat__chart">${lineTop}${bars}</div>
+      </div>`;
+  } else {
+    body += `<p class="pstat__msg">No game-by-game comparison for “${escapeHtml(d.stat)}” yet — season averages below.</p>`;
+  }
+  if (s.averages && s.averages.length) {
+    body += `<div class="pstat__avgs"><div class="pstat__avgshead"><span>Per game</span><span>Season</span><span>Last 5</span></div>` +
+      s.averages.map((a) => `<div><span>${escapeHtml(a.label)}</span><b>${num(a.season)}</b><b>${num(a.last5)}</b></div>`).join('') + `</div>`;
+  }
+  return head + body;
 }
 
 // ESPN team logo for the player's team. PrizePicks abbreviations occasionally
@@ -747,6 +843,8 @@ function initControls() {
   // Form
   $('#slip-form').addEventListener('submit', onSubmit);
   $('#demo-btn').addEventListener('click', onDemo);
+  document.addEventListener('click', onLegActivate);
+  document.addEventListener('keydown', onLegActivate);
 
   // Tabs
   $$('.tab').forEach((tab) => {

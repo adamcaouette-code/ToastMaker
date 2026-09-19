@@ -549,14 +549,26 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .badge--amber { background: var(--amber-soft); color: var(--amber); }
 
 .legs { display: flex; flex-direction: column; }
+.leg-wrap { border-bottom: 1px solid var(--line); transition: background 0.15s; }
+.leg-wrap:last-child { border-bottom: none; }
 .leg {
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.leg:last-child { border-bottom: none; }
+.leg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+/* highlighted (open) player */
+.leg-wrap.is-open {
+  background: rgba(163, 230, 53, 0.07);
+  box-shadow: inset 3px 0 0 var(--accent);
+  margin: 0 -12px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+.leg-wrap.is-open .leg__name { color: var(--accent); }
 .avatar {
   /* no circle/border/background: the ESPN cutout shows uncropped (they're ~4:3) */
   width: 68px; height: 50px;
@@ -789,3 +801,32 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 
 /* plain-text fallback keeps the agent's line breaks */
 .slip__note { white-space: pre-line; }
+
+/* ---------- player stats dropdown ---------- */
+.leg__panel { padding: 4px 0 14px; }
+.pstat__head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.pstat__shot { width: 112px; height: 84px; }
+.pstat__shot svg { width: 60px; height: 60px; }
+.pstat__name { font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1.05; }
+.pstat__sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.pstat__msg { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.pstat__prop { margin-bottom: 12px; }
+.pstat__proptitle { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.pstat__kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.pstat__kpis > div { background: var(--surface-2); border-radius: 8px; padding: 7px 8px; display: flex; flex-direction: column; gap: 2px; }
+.pstat__kpis b { font-family: var(--mono); font-weight: 600; font-size: 15px; }
+.pstat__kpis span { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.pstat__chart { position: relative; display: flex; align-items: stretch; gap: 3px; height: 96px; padding-bottom: 26px; }
+.pstat__col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.pstat__bar { width: 100%; background: var(--line-2); border-radius: 3px 3px 0 0; }
+.pstat__bar.is-hit { background: var(--accent); }
+.pstat__val { position: absolute; top: -2px; font-family: var(--mono); font-size: 8px; color: var(--muted); }
+.pstat__opp { position: absolute; bottom: -22px; font-size: 7.5px; color: var(--muted); white-space: nowrap; }
+.pstat__line { position: absolute; left: 0; right: 0; margin-bottom: 26px; border-top: 1px dashed var(--amber); pointer-events: none; }
+.pstat__line span { position: absolute; right: 0; top: -13px; font-family: var(--mono); font-size: 9px; color: var(--amber); background: var(--surface); padding: 0 3px; }
+.pstat__avgs { display: grid; gap: 1px; font-size: 12px; }
+.pstat__avgs > div { display: grid; grid-template-columns: 1fr 56px 56px; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.pstat__avgs > div:last-child { border-bottom: none; }
+.pstat__avgs b { font-family: var(--mono); font-weight: 600; text-align: right; }
+.pstat__avgshead { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
+.pstat__avgshead span:nth-child(n+2) { text-align: right; }

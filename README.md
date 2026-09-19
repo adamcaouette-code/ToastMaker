@@ -9,6 +9,7 @@
   its reply.
 - **Leagues chips + lines.** Come from PrizePicks (the default source): the chips are the per-game boards it's posting, and Generate fetches those leagues' real lines and hands them to the agent. SportsGameOdds is supporting data only. PrizePicks has no official API — this uses the endpoint its own web app calls (`partner-api.prizepicks.com`), so it can break without warning. It fails loudly (clear error, no session started) instead of returning empty lines. `GET /api/prizepicks-lines?league=MLB` shows the full board including goblin/demon lines. Tests: `node --test test/prizepicks.test.js`.
 - **Headshots.** After slips render, `POST /api/headshots` resolves each player to an ESPN athlete (search + strict name matching from `player-match.mjs`, copied from prizepicks-tracker) and fills in the photo. No confident match = silhouette, never a guess. Tests: `node --test test/headshots.test.mjs`.
+- **Player stats dropdown.** Tap a player on a slip card: the row highlights and a panel opens with a large headshot, the bet's stat over the last 10 games (season avg, last-5 avg, how many cleared the line, bar chart) and per-game season averages. `POST /api/player-stats` (ESPN game logs; a player it can't match confidently shows "no confident ESPN match", never someone else's numbers). The bet-stat comparison is mapped for common MLB/NFL/NBA/WNBA stats; anything else still gets the season-average grid. Tests: `node --test test/player-stats.test.mjs`.
 - **Review tab.** Reads any memory file with "review" in its name and
   shows it as a note card.
 
