@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.9.1';
+const APP_VERSION = 'v0.10.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -320,6 +320,7 @@ async function onSubmit(event) {
   try {
     const data = await requestSlips(payload);
     renderResults(data, payload);
+    if (data && Array.isArray(data.slips) && data.slips.length) saveToHistory(data.slips, payload);
   } catch (err) {
     $('#results').innerHTML = `<p class="form-error">Couldn't build the slips — ${escapeHtml(err.message)}</p>`;
   } finally {
@@ -334,6 +335,31 @@ function onDemo() {
   $('#form-error').hidden = true;
   const payload = buildPayload();
   renderResults(mockSlips(payload), payload);
+}
+
+// Every real Generate is recorded in the shared memory store (POST /api/history)
+// so History accumulates across days and devices. A failed save is shown, never
+// swallowed: an unrecorded slip is exactly what History exists to prevent.
+async function saveToHistory(slips, payload) {
+  const note = (text, isError) => {
+    const el = document.createElement('p');
+    el.className = isError ? 'form-error' : 'results__saved';
+    el.textContent = text;
+    $('#results').appendChild(el);
+  };
+  try {
+    const res = await fetch('/api/history', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slips, leagues: payload.leagues, appVersion: APP_VERSION }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    state.historyCache = null; // next History visit reloads
+    note(`Saved to History · ${data.saved.length} slip${data.saved.length === 1 ? '' : 's'}`);
+  } catch (err) {
+    note(`Couldn't save to History — ${err.message}. These slips won't appear there.`, true);
+  }
 }
 
 function setGenerating(on) {
@@ -768,6 +794,7 @@ async function loadHistory() {
   try {
     const data = await fetchFeed('history');
     state.historyCache = Array.isArray(data) ? data : (data.slips || []);
+    state.historyWarnings = (!Array.isArray(data) && data.warnings) || [];
     renderHistoryStats(state.historyCache);
     renderHistory();
   } catch (err) {
@@ -789,17 +816,27 @@ function renderHistoryStats(slips) {
     <div class="stat"><span class="stat__k">Hit rate</span><span class="stat__v">${rate}%</span></div>`;
 }
 
+// "2026-09-19" -> "Sat, Sep 19" (noon avoids timezone rollover); anything else as-is.
+function fmtDay(d) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d || ''))) return d || '';
+  return new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 function renderHistory() {
   const list = $('#history-list');
   const all = state.historyCache || [];
   const slips = state.historyFilter === 'all' ? all : all.filter((s) => s.status === state.historyFilter);
 
+  const warn = (state.historyWarnings || []).length
+    ? `<p class="form-error">${state.historyWarnings.length} saved record(s) couldn't be read: ${escapeHtml(state.historyWarnings.join(' · '))}</p>`
+    : '';
+
   if (!slips.length) {
-    list.innerHTML = '<p class="list-empty">Nothing here yet.</p>';
+    list.innerHTML = warn + `<p class="list-empty">${all.length ? 'Nothing here yet.' : 'No saved slips yet. Every slip you generate is saved here automatically.'}</p>`;
     return;
   }
 
-  list.innerHTML = slips.map((slip) => {
+  list.innerHTML = warn + slips.map((slip) => {
     const badge = { won: 'badge--accent', lost: 'badge--red', pending: 'badge--amber' }[slip.status] || 'badge--amber';
     const label = slip.status === 'pending' ? 'Live' : slip.status;
     const net = (slip.payout || 0) - (slip.entry || 0);
@@ -808,7 +845,7 @@ function renderHistory() {
       <div class="slip__head">
         <div>
           <div class="slip__title">${escapeHtml((slip.entryType || '').toUpperCase())} · ${(slip.legs || []).length} legs</div>
-          <div class="slip__sub">${escapeHtml(slip.date || '')}${slip.league ? ` · ${escapeHtml(slip.league)}` : ''}</div>
+          <div class="slip__sub">${escapeHtml(fmtDay(slip.date))}${slip.league ? ` · ${escapeHtml(slip.league)}` : ''}</div>
         </div>
         <span class="badge ${badge}">${escapeHtml(label)}</span>
       </div>

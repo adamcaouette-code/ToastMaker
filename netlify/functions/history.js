@@ -1,52 +1,62 @@
-const { listMemories } = require("./_anthropic");
+// GET  /api/history -> { slips: [...], warnings: [...] }  every saved slip, newest first
+// POST /api/history { slips, leagues, appVersion } -> { saved: [{ id, path }] }
+//
+// Slips live in the shared memory store as slip-v1 JSON files (see _slips.js),
+// so History accumulates across days and devices, and the agents can read them.
+// Only slip-v1 .json files are slips: agent notes (Rules.md, sizing markdown)
+// are not, and are skipped. A .json file that isn't a valid record is reported
+// in `warnings` (shown on the History tab), never silently dropped. A failed
+// save is an error response, never a silent success.
 
-// KNOWN LIMITATION: your four agents don't yet write slip records in one
-// consistent structured shape (that's a follow-up task, not done yet).
-// So this can only reliably parse a slip if a memory file happens to
-// contain a fenced ```json block matching Design's slip shape (see
-// app.js SLIP SHAPE comment) plus an "outcome" field for status/results.
-// Anything else gets wrapped as a bare note so the tab doesn't crash, but
-// it won't render as a full card with per-leg hit/miss until the memory
-// schema is standardized across Slip Builder / Bet-Sizing / Results-Logger.
+const { api, listAll, MEMORY_HEADERS } = require("./_anthropic");
+const { buildRecord, recordPath, parseRecord } = require("./_slips");
 
-exports.handler = async () => {
+const reply = (statusCode, body) => ({ statusCode, headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
+
+exports.handler = async (event) => {
   try {
     const { MEMORY_STORE_ID } = process.env;
     if (!MEMORY_STORE_ID) throw new Error("Missing env var: MEMORY_STORE_ID");
+    const base = `/memory_stores/${MEMORY_STORE_ID}/memories`;
 
-    const files = (await listMemories(MEMORY_STORE_ID))
-      .filter((f) => /slip/i.test(f.path) && !/review|preferences/i.test(f.path))
-      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    if (event.httpMethod === "POST") {
+      const { slips, leagues, appVersion } = JSON.parse(event.body || "{}");
+      if (!Array.isArray(slips) || !slips.length) return reply(400, { error: "slips[] is required" });
 
-    const slips = files.map((f, i) => {
-      const match = (f.content || "").match(/```json\s*([\s\S]*?)```/);
-      if (match) {
+      const saved = [];
+      const now = new Date();
+      for (const [index, slip] of slips.entries()) {
         try {
-          const parsed = JSON.parse(match[1]);
-          if (parsed && (parsed.legs || parsed.entryType)) {
-            return { id: f.path, date: new Date(f.updated_at).toLocaleDateString(), ...parsed };
-          }
-        } catch {
-          // fall through
+          const rec = buildRecord(slip, { now, index, leagues, appVersion });
+          const mem = await api(base, {
+            method: "POST",
+            headers: MEMORY_HEADERS,
+            body: JSON.stringify({ path: recordPath(rec), content: JSON.stringify(rec, null, 2) }),
+          });
+          saved.push({ id: rec.id, path: mem.path });
+        } catch (err) {
+          console.error(err);
+          return reply(502, { error: `Saved ${saved.length} of ${slips.length} slips, then failed: ${err.message}`, saved });
         }
       }
-      // Unparseable — wrap as a plain note-style entry instead of dropping it.
-      return {
-        id: f.path || `slip-${i}`,
-        date: new Date(f.updated_at).toLocaleDateString(),
-        entryType: "flex",
-        entry: 0,
-        multiplier: 0,
-        payout: 0,
-        status: "unknown",
-        note: f.content ? f.content.slice(0, 400) : "(empty)",
-        legs: [],
-      };
-    });
+      return reply(200, { saved });
+    }
 
-    return { statusCode: 200, body: JSON.stringify({ slips }) };
+    const files = await listAll(base, { view: "full", limit: "20", path_prefix: "/slips/" }, MEMORY_HEADERS);
+    const slips = [];
+    const warnings = [];
+    for (const f of files) {
+      if (!/\.json$/i.test(f.path)) continue;
+      try {
+        slips.push({ ...parseRecord(f.content), path: f.path });
+      } catch (err) {
+        warnings.push(`${f.path}: ${err.message}`);
+      }
+    }
+    slips.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return reply(200, { slips, warnings });
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return reply(500, { error: err.message });
   }
 };

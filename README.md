@@ -47,3 +47,13 @@ payload shape against a live call. If tapping "Generate Slips" gives a
 500 with something like `Anthropic API 400`, open
 `netlify/functions/start-session.js`, check the request body against the
 current spec at platform.claude.com/docs/en/api/beta/sessions, and adjust.
+
+## History and the saved-slip format
+
+Every real Generate saves its slips to the shared memory store as one JSON file each (demo slips are never saved), so History accumulates across days and devices. Files follow the daily-folder rule in `Rules.md`:
+
+    /slips/2026/09/19 MLB 3-LEG PENDING/<id>.json
+
+Each file is a `slip-v1` record (see `netlify/functions/_slips.js`): `status` is `pending | won | lost`; each leg has `status` (`open | hit | miss | push | void`) and `result` (the player's actual stat). History shows only `slip-v1` `.json` files; agent notes (markdown) are ignored, and an unreadable `.json` is reported as a warning on the tab.
+
+**To grade slips** (Results-Logger or by hand): for each `pending` file, set each leg's `status`/`result`, set the slip `status` to `won` or `lost` (and `payout` if it won), then rename the folder's `PENDING` to `WIN` or `LOSS`. History reads the fields, not the folder name. Tests: `node --test test/history.test.js`.

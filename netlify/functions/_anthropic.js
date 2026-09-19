@@ -55,4 +55,6 @@ async function listAll(path, params = {}, headers = {}, maxPages = 25) {
 const listMemories = (storeId) =>
   listAll(`/memory_stores/${storeId}/memories`, { view: "full", limit: "20" }, { "anthropic-beta": MEMORY_BETA });
 
-module.exports = { api, listAll, listMemories };
+const MEMORY_HEADERS = { "anthropic-beta": MEMORY_BETA };
+
+module.exports = { api, listAll, listMemories, MEMORY_HEADERS };

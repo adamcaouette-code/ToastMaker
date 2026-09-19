@@ -854,3 +854,5 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .pstat__avgs b { font-family: var(--mono); font-weight: 600; text-align: right; }
 .pstat__avgshead { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
 .pstat__avgshead span:nth-child(n+2) { text-align: right; }
+
+.results__saved { margin: 10px 0 0; text-align: center; font-size: 11px; color: var(--muted); }
