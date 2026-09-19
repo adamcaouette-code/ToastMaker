@@ -558,19 +558,16 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 }
 .leg:last-child { border-bottom: none; }
 .avatar {
-  width: 52px; height: 52px;
+  /* no circle/border/background: the ESPN cutout shows uncropped (they're ~4:3) */
+  width: 68px; height: 50px;
   flex-shrink: 0;
-  border-radius: 50%;
-  border: 1.5px solid var(--line-2);
-  background: var(--surface-2);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  overflow: hidden;
   color: var(--muted);
 }
-.avatar img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
-.avatar svg { width: 36px; height: 36px; opacity: 0.6; }
+.avatar img { width: 100%; height: 100%; object-fit: contain; object-position: bottom center; }
+.avatar svg { width: 38px; height: 38px; opacity: 0.6; }
 .leg__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .leg__name {
   font-family: var(--display);
