@@ -16,7 +16,7 @@ const BASE = "https://api.sportsgameodds.com/v2";
 const TTL = 10 * 60 * 1000;
 let cache = null;
 
-exports.handler = async () => {
+exports.handler = async (event) => {
   try {
     const key = process.env.SPORTSGAMEODDS_API_KEY;
     if (!key) throw new Error("Missing env var: SPORTSGAMEODDS_API_KEY");
@@ -31,18 +31,24 @@ exports.handler = async () => {
       return res.json();
     };
 
-    const ids = ((await get("/leagues")).data || []).map((l) => l.leagueID).filter(Boolean);
+    const raw = await get("/leagues");
+    const ids = (raw.data || []).map((l) => l.leagueID).filter(Boolean);
     const until = new Date(Date.now() + 36 * 3600 * 1000).toISOString();
     const qs = new URLSearchParams({ finalized: "false", oddsAvailable: "true", startsBefore: until, limit: "1" });
 
+    const errors = [];
     const checks = await Promise.all(
       ids.map((id) =>
         get(`/events?leagueID=${id}&${qs}`)
           .then((d) => (Array.isArray(d.data) && d.data.length ? id : null))
-          .catch(() => null)
+          .catch((e) => { errors.push(`${id}: ${e.message}`); return null; })
       )
     );
     const leagues = checks.filter(Boolean).sort();
+    if (event.queryStringParameters?.debug) {
+      const sample = JSON.stringify(raw).slice(0, 300);
+      return { statusCode: 200, body: JSON.stringify({ leagues, leagueCount: ids.length, failed: errors.length, errors: errors.slice(0, 3), sample }) };
+    }
     cache = { at: Date.now(), leagues };
     return { statusCode: 200, headers, body: JSON.stringify({ leagues }) };
   } catch (err) {
