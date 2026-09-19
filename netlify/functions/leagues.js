@@ -9,35 +9,42 @@
 // Same underlying SportsGameOdds account/key is fine to reuse the value of,
 // just set it here too as its own Netlify env var.
 
-// One events query (unfinished, has odds, starting within 36h) across ALL
-// leagues, then the distinct leagueIDs. No hardcoded list, so WNBA, soccer,
-// tennis, MMA etc. show up whenever they have games.
+// This tier requires a leagueID on every events query, so: list all leagues
+// from /v2/leagues, then check each for an unfinished event with odds in the
+// next 36h. Cached 10 min (per warm instance + browser) to spare the rate limit.
+const BASE = "https://api.sportsgameodds.com/v2";
+const TTL = 10 * 60 * 1000;
+let cache = null;
+
 exports.handler = async () => {
   try {
     const key = process.env.SPORTSGAMEODDS_API_KEY;
     if (!key) throw new Error("Missing env var: SPORTSGAMEODDS_API_KEY");
-
-    const found = new Set();
-    let cursor = null;
-    for (let page = 0; page < 5; page++) {
-      const qs = new URLSearchParams({
-        finalized: "false",
-        oddsAvailable: "true",
-        startsBefore: new Date(Date.now() + 36 * 3600 * 1000).toISOString(),
-        limit: "100",
-      });
-      if (cursor) qs.set("cursor", cursor);
-      const res = await fetch(`https://api.sportsgameodds.com/v2/events?${qs}`, {
-        headers: { "x-api-key": key },
-      });
-      if (!res.ok) throw new Error(`SportsGameOdds ${res.status}: ${(await res.text()).slice(0, 200)}`);
-      const body = await res.json();
-      for (const e of body.data || []) if (e.leagueID) found.add(e.leagueID);
-      cursor = body.nextCursor;
-      if (!cursor) break;
+    const headers = { "cache-control": "public, max-age=600" };
+    if (cache && Date.now() - cache.at < TTL) {
+      return { statusCode: 200, headers, body: JSON.stringify({ leagues: cache.leagues }) };
     }
 
-    return { statusCode: 200, body: JSON.stringify({ leagues: [...found].sort() }) };
+    const get = async (path) => {
+      const res = await fetch(`${BASE}${path}`, { headers: { "x-api-key": key } });
+      if (!res.ok) throw new Error(`SportsGameOdds ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return res.json();
+    };
+
+    const ids = ((await get("/leagues")).data || []).map((l) => l.leagueID).filter(Boolean);
+    const until = new Date(Date.now() + 36 * 3600 * 1000).toISOString();
+    const qs = new URLSearchParams({ finalized: "false", oddsAvailable: "true", startsBefore: until, limit: "1" });
+
+    const checks = await Promise.all(
+      ids.map((id) =>
+        get(`/events?leagueID=${id}&${qs}`)
+          .then((d) => (Array.isArray(d.data) && d.data.length ? id : null))
+          .catch(() => null)
+      )
+    );
+    const leagues = checks.filter(Boolean).sort();
+    cache = { at: Date.now(), leagues };
+    return { statusCode: 200, headers, body: JSON.stringify({ leagues }) };
   } catch (err) {
     console.error(err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
