@@ -9,33 +9,35 @@
 // Same underlying SportsGameOdds account/key is fine to reuse the value of,
 // just set it here too as its own Netlify env var.
 
-const CANDIDATE_LEAGUES = ["MLB", "NFL", "NBA", "NHL", "NCAAF", "NCAAB"];
-
+// One events query (unfinished, has odds, starting within 36h) across ALL
+// leagues, then the distinct leagueIDs. No hardcoded list, so WNBA, soccer,
+// tennis, MMA etc. show up whenever they have games.
 exports.handler = async () => {
   try {
     const key = process.env.SPORTSGAMEODDS_API_KEY;
     if (!key) throw new Error("Missing env var: SPORTSGAMEODDS_API_KEY");
 
-    const checks = await Promise.all(
-      CANDIDATE_LEAGUES.map(async (league) => {
-        try {
-          const res = await fetch(
-            `https://api.sportsgameodds.com/v2/events?leagueID=${league}&limit=1`,
-            { headers: { "x-api-key": key } }
-          );
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data.success && Array.isArray(data.data) && data.data.length > 0
-            ? league
-            : null;
-        } catch {
-          return null;
-        }
-      })
-    );
+    const found = new Set();
+    let cursor = null;
+    for (let page = 0; page < 5; page++) {
+      const qs = new URLSearchParams({
+        finalized: "false",
+        oddsAvailable: "true",
+        startsBefore: new Date(Date.now() + 36 * 3600 * 1000).toISOString(),
+        limit: "100",
+      });
+      if (cursor) qs.set("cursor", cursor);
+      const res = await fetch(`https://api.sportsgameodds.com/v2/events?${qs}`, {
+        headers: { "x-api-key": key },
+      });
+      if (!res.ok) throw new Error(`SportsGameOdds ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      const body = await res.json();
+      for (const e of body.data || []) if (e.leagueID) found.add(e.leagueID);
+      cursor = body.nextCursor;
+      if (!cursor) break;
+    }
 
-    const leagues = checks.filter(Boolean);
-    return { statusCode: 200, body: JSON.stringify({ leagues }) };
+    return { statusCode: 200, body: JSON.stringify({ leagues: [...found].sort() }) };
   } catch (err) {
     console.error(err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
