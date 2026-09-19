@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.7.1';
+const APP_VERSION = 'v0.7.2';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -52,6 +52,7 @@ const CONFIG = {
          "stat": "Receiving Yards",
          "line": 79.5,
          "pick": "over",              // "over" | "under" (legacy "more"/"less" still accepted)
+         "reasoning": "2-3 sentences on why this pick",   // optional; hidden when absent
          "espnId": "4362628",         // optional -> headshot
          "headshot": null             // or a direct image URL, wins over espnId
        }]
@@ -105,7 +106,7 @@ async function fetchLeagues() {
 const REPLY_FORMAT =
   'REPLY FORMAT: one short sentence of summary, then END with a single ```json fenced block, nothing after it, no markdown tables. ' +
   'Shape: {"slips":[{"id":"slip-1","entryType":"flex"|"power","entry":<stake in dollars for this slip>,"multiplier":<payout multiplier>,"payout":<projected payout in dollars>,' +
-  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"over"|"under"}]}]}.';
+  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"over"|"under","reasoning":"<2-3 sentences on why this pick>"}]}]}.';
 
 function buildAgentMessage(payload) {
   const parts = [
@@ -448,6 +449,8 @@ function legRow(leg) {
     : '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v8"></path><path d="M2.5 6.5L6 10l3.5-3.5"></path></svg>';
 
   const meta = [leg.team, leg.opponent, leg.stat].filter(Boolean).join(' · ');
+  const why = typeof leg.reasoning === 'string' ? leg.reasoning.trim() : '';
+  const reasoning = why ? `<p class="leg__reasoning">${escapeHtml(why)}</p>` : '';
   const league = leg.league ? `<span class="leg__league">${escapeHtml(String(leg.league).toUpperCase())}</span>` : '';
 
   // Tapping a leg opens its stats panel (see togglePlayer). data-* carries what /api/player-stats needs.
@@ -467,6 +470,7 @@ function legRow(leg) {
       <span class="leg__dir ${isMore ? 'is-more' : 'is-less'}">${arrow}${pickLabel(leg.pick)}</span>
     </div>
   </div>
+  ${reasoning}
   <div class="leg__panel" hidden></div>
   </div>`;
 }

@@ -592,6 +592,7 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   text-overflow: ellipsis;
 }
 .leg__meta { font-size: 10px; color: var(--muted); }
+.leg__reasoning { margin: 0; padding: 0 0 10px; font-size: 11px; line-height: 1.45; color: var(--muted); }
 .leg__title { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .leg__league {
   flex-shrink: 0;
