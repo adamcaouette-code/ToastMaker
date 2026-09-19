@@ -7,8 +7,7 @@
   slip count) builds a message, sends it to the Slip Builder agent, polls
   from the browser until it's done, and pulls a structured slip out of
   its reply.
-- **Leagues chips.** Pulled live from SportsGameOdds each time the page
-  loads — whatever has games today shows up, nothing hardcoded.
+- **Leagues chips + lines.** Come from PrizePicks (the default source): the chips are the per-game boards it's posting, and Generate fetches those leagues' real lines and hands them to the agent. SportsGameOdds is supporting data only. PrizePicks has no official API — this uses the endpoint its own web app calls (`partner-api.prizepicks.com`), so it can break without warning. It fails loudly (clear error, no session started) instead of returning empty lines. `GET /api/prizepicks-lines?league=MLB` shows the full board including goblin/demon lines. Tests: `node --test test/prizepicks.test.js`.
 - **Review tab.** Reads any memory file with "review" in its name and
   shows it as a note card.
 

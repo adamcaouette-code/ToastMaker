@@ -8,10 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.3.0';
-
-// Chip text only; the value sent to the agent stays the API's leagueID.
-const LEAGUE_LABELS = { UEFA_CHAMPIONS_LEAGUE: 'UCL' };
+const APP_VERSION = 'v0.4.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -141,7 +138,7 @@ async function requestSlips(payload) {
   const startRes = await fetch('/api/start-session', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, leagues: payload.leagues }),
   });
   const startData = await startRes.json();
   if (!startRes.ok || startData.error) throw new Error(startData.error || `Start failed (${startRes.status})`);
@@ -279,7 +276,7 @@ async function loadLeagues() {
       const checked = state.selectedLeagues.has(league) ? ' checked' : '';
       return `<label class="chip" for="${id}">
         <input class="sr-only" type="checkbox" id="${id}" name="leagues" value="${escapeAttr(league)}"${checked}>
-        ${escapeHtml(LEAGUE_LABELS[league] || league)}
+        ${escapeHtml(league)}
       </label>`;
     }).join('');
 
