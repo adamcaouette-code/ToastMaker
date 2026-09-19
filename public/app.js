@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.5.1';
+const APP_VERSION = 'v0.5.2';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -443,18 +443,34 @@ function legRow(leg) {
     : '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v8"></path><path d="M2.5 6.5L6 10l3.5-3.5"></path></svg>';
 
   const meta = [leg.team, leg.opponent, leg.stat].filter(Boolean).join(' · ');
+  const league = leg.league ? `<span class="leg__league">${escapeHtml(String(leg.league).toUpperCase())}</span>` : '';
 
   return `<div class="leg">
     ${avatar(leg)}
     <div class="leg__body">
-      <span class="leg__name">${escapeHtml(leg.player || 'Unknown player')}</span>
+      <span class="leg__title"><span class="leg__name">${escapeHtml(leg.player || 'Unknown player')}</span>${league}</span>
       <span class="leg__meta">${escapeHtml(meta)}</span>
     </div>
+    ${teamLogo(leg)}
     <div class="leg__pick">
       <span class="leg__line">${leg.line != null ? escapeHtml(String(leg.line)) : '—'}</span>
       <span class="leg__dir ${isMore ? 'is-more' : 'is-less'}">${arrow}${isMore ? 'More' : 'Less'}</span>
     </div>
   </div>`;
+}
+
+// ESPN team logo for the player's team. PrizePicks abbreviations occasionally
+// differ from ESPN's, so a few are aliased; anything that still 404s is removed
+// (dark variant first, then the standard one) rather than shown broken.
+const LOGO_SLUG = { MLB: 'mlb', NFL: 'nfl', NBA: 'nba', NHL: 'nhl', WNBA: 'wnba' };
+const LOGO_ALIAS = { NOP: 'no', UTA: 'utah', NYK: 'ny', SAS: 'sa', GSW: 'gs', WAS: 'wsh', JAC: 'jax', TBL: 'tb', NJD: 'nj', SJS: 'sj', LAK: 'la' };
+function teamLogo(leg) {
+  const slug = LOGO_SLUG[String(leg.league || '').toUpperCase()];
+  const abbr = String(leg.team || '').toUpperCase();
+  if (!slug || !/^[A-Z]{2,4}$/.test(abbr)) return '';
+  const file = LOGO_ALIAS[abbr] || abbr.toLowerCase();
+  return `<span class="leg__team"><img src="https://a.espncdn.com/i/teamlogos/${slug}/500-dark/${file}.png" alt="${escapeAttr(abbr)}" loading="lazy" ` +
+    `onerror="if(this.dataset.f){this.parentNode.remove()}else{this.dataset.f=1;this.src=this.src.replace('500-dark','500')}"></span>`;
 }
 
 const SILHOUETTE = '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="18" r="8.5" fill="currentColor"></circle><path d="M8 48c0-8.8 7.2-14.5 16-14.5S40 39.2 40 48z" fill="currentColor"></path></svg>';

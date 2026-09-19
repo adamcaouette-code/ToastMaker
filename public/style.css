@@ -558,7 +558,7 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 }
 .leg:last-child { border-bottom: none; }
 .avatar {
-  width: 36px; height: 36px;
+  width: 52px; height: 52px;
   flex-shrink: 0;
   border-radius: 50%;
   border: 1.5px solid var(--line-2);
@@ -570,7 +570,7 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   color: var(--muted);
 }
 .avatar img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
-.avatar svg { width: 25px; height: 25px; opacity: 0.6; }
+.avatar svg { width: 36px; height: 36px; opacity: 0.6; }
 .leg__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .leg__name {
   font-family: var(--display);
@@ -581,6 +581,18 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   text-overflow: ellipsis;
 }
 .leg__meta { font-size: 10px; color: var(--muted); }
+.leg__title { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.leg__league {
+  flex-shrink: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  opacity: 0.55;
+}
+.leg__team { width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.leg__team img { width: 100%; height: 100%; object-fit: contain; }
 .leg__pick { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .leg__line { font-family: var(--mono); font-weight: 600; font-size: 14px; }
 .leg__dir {
