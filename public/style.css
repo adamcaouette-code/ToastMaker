@@ -151,12 +151,10 @@ button { cursor: pointer; }
 .chips-scroller {
   margin: 0 -14px;
   padding: 1px 14px 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  /* was a hidden-scrollbar horizontal scroller; mouse users couldn't reach the
+     chips past the edge, so they wrap onto extra rows instead */
 }
-.chips-scroller::-webkit-scrollbar { display: none; }
-.chips { display: flex; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips--filters { flex-wrap: wrap; margin-bottom: 11px; }
 
 .chip {

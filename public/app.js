@@ -8,7 +8,10 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.2.8';
+const APP_VERSION = 'v0.2.9';
+
+// Chip text only; the value sent to the agent stays the API's leagueID.
+const LEAGUE_LABELS = { UEFA_CHAMPIONS_LEAGUE: 'UCL' };
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -268,7 +271,7 @@ async function loadLeagues() {
       const checked = state.selectedLeagues.has(league) ? ' checked' : '';
       return `<label class="chip" for="${id}">
         <input class="sr-only" type="checkbox" id="${id}" name="leagues" value="${escapeAttr(league)}"${checked}>
-        ${escapeHtml(league)}
+        ${escapeHtml(LEAGUE_LABELS[league] || league)}
       </label>`;
     }).join('');
 
