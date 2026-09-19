@@ -33,8 +33,7 @@ exports.handler = async (event) => {
     await api(`/sessions/${session.id}/events`, {
       method: "POST",
       body: JSON.stringify({
-        type: "user.message",
-        content: [{ type: "text", text: message }],
+        events: [{ type: "user.message", content: [{ type: "text", text: message }] }],
       }),
     });
 
