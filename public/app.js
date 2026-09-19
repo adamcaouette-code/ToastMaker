@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.4.0';
+const APP_VERSION = 'v0.5.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -359,6 +359,8 @@ function renderResults(data, payload) {
     return;
   }
 
+  slips.forEach((s) => (s.legs || []).forEach((l) => { delete l.espnId; delete l.headshot; }));
+
   box.innerHTML =
     `<div class="results__head">
        <h2>${slips.length > 1 ? `${slips.length} slips` : 'Your slip'}</h2>
@@ -366,6 +368,36 @@ function renderResults(data, payload) {
      </div>` + slips.map(slipCard).join('');
 
   wireAvatarFallbacks(box);
+  fillHeadshots(slips, box); // async; silhouettes stay until (and unless) a confident match comes back
+}
+
+// Photos come only from /api/headshots (ESPN search + strict name matching).
+// Any espnId/headshot the agent supplies is dropped: a guessed id would show the
+// wrong player, and no photo is better than a wrong one.
+async function fillHeadshots(slips, box) {
+  const byLeague = {};
+  for (const s of slips) {
+    for (const leg of s.legs || []) {
+      if (!leg.player || !leg.league) continue;
+      (byLeague[leg.league] ||= new Set()).add(leg.player);
+    }
+  }
+  for (const [league, names] of Object.entries(byLeague)) {
+    try {
+      const res = await fetch('/api/headshots', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ league, names: [...names] }),
+      });
+      const { headshots = {} } = await res.json();
+      box.querySelectorAll('.avatar[data-player]').forEach((el) => {
+        const url = el.dataset.league === league && headshots[el.dataset.player];
+        if (!url) return;
+        el.innerHTML = `<img src="${escapeAttr(url)}" alt="" loading="lazy">`;
+        wireAvatarFallbacks(el);
+      });
+    } catch { /* cosmetic: silhouettes stay */ }
+  }
 }
 
 function slipCard(slip, index) {
@@ -420,7 +452,7 @@ const SILHOUETTE = '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" 
 
 function avatar(leg) {
   const src = leg.headshot || headshotUrl(leg);
-  if (!src) return `<span class="avatar">${SILHOUETTE}</span>`;
+  if (!src) return `<span class="avatar" data-player="${escapeAttr(leg.player || '')}" data-league="${escapeAttr(leg.league || '')}">${SILHOUETTE}</span>`;
   return `<span class="avatar"><img src="${escapeAttr(src)}" alt="" loading="lazy"></span>`;
 }
 
