@@ -62,3 +62,17 @@ test("ESPN gamelog failure -> 502 with a reason, not an empty card", async () =>
   assert.strictEqual(res.statusCode, 502);
   assert.match(JSON.parse(res.body).error, /503/);
 });
+
+test("chart/hit rate cover the last 5 games only, each carrying its opponent abbreviation", () => {
+  const events = {}, evs = [];
+  for (let i = 1; i <= 7; i++) {
+    events["g" + i] = { gameDate: `2026-09-0${i}`, atVs: i % 2 ? "vs" : "@", opponent: { abbreviation: "OP" + i } };
+    evs.push({ eventId: "g" + i, stats: [String(i), "0", "0", "0", "0", ".300"] });
+  }
+  const seven = { ...log, events, seasonTypes: [{ displayName: "Regular Season", categories: [{ events: evs }] }] };
+  const prop = buildCard(parseGamelog(seven), { stat: "Hits", line: 4.5, pick: "over" }).prop;
+  assert.strictEqual(prop.log.length, 5);
+  assert.deepStrictEqual(prop.log.map((g) => g.v), [3, 4, 5, 6, 7]);
+  assert.deepStrictEqual(prop.log.map((g) => g.oppAbbr), ["OP3", "OP4", "OP5", "OP6", "OP7"]);
+  assert.deepStrictEqual([prop.hits, prop.of], [3, 5]);
+});

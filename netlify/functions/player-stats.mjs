@@ -10,7 +10,7 @@
 
 import { ESPN, resolveAthlete } from "./_espn.mjs";
 
-const RECENT = 10;
+const RECENT = 5; // chart, "Last 5 avg" and the hit rate all cover the same 5 games
 
 // PrizePicks stat_type (lowercase) -> function over one game's {espnName: number}.
 // Returns undefined-ish (NaN) when an operand is missing, which drops the mapping
@@ -76,6 +76,7 @@ export function parseGamelog(d) {
       games.push({
         date: meta.gameDate || "",
         opp: `${meta.atVs || ""}${meta.opponent?.abbreviation || ""}`,
+        oppAbbr: meta.opponent?.abbreviation || "",
         vals,
       });
     }
@@ -90,7 +91,7 @@ export function buildCard({ games, names, labels }, { stat, line, pick }) {
   const fn = STAT_MAP[String(stat || "").toLowerCase()];
   if (fn && games.length) {
     const series = games
-      .map((g) => ({ v: fn(g.vals), opp: g.opp, date: g.date }))
+      .map((g) => ({ v: fn(g.vals), opp: g.opp, oppAbbr: g.oppAbbr, date: g.date }))
       .filter((g) => Number.isFinite(g.v));
     if (series.length) {
       const last = series.slice(-RECENT);
@@ -105,7 +106,7 @@ export function buildCard({ games, names, labels }, { stat, line, pick }) {
         games: series.length,
         hits: last.filter((g) => hit(g.v)).length,
         of: last.length,
-        log: last.map((g) => ({ v: g.v, opp: g.opp, date: g.date, hit: hit(g.v) })),
+        log: last.map((g) => ({ v: g.v, opp: g.opp, oppAbbr: g.oppAbbr, date: g.date, hit: hit(g.v) })),
       };
     }
   }

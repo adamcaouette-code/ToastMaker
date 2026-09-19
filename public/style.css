@@ -819,6 +819,10 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .pstat__league { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; color: var(--muted); margin-top: 5px; }
 .pstat__team { font-size: 13px; color: var(--text); opacity: 0.85; margin-top: 3px; }
 .pstat__proprow { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: end; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.pstat__pick { display: flex; align-items: baseline; gap: 8px; justify-self: end; }
+.pstat__prob { text-align: center; }
+.pstat__prob b { font-family: var(--display); font-weight: 700; font-size: 32px; line-height: 1; letter-spacing: 0; }
+.pstat__prob span { margin-top: 3px; }
 .pstat__proprow span { display: block; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .pstat__proprow b { font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: 0.03em; }
 .pstat__propline { font-family: var(--mono) !important; font-size: 18px !important; }
@@ -834,14 +838,16 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 .pstat__kpis > div { background: var(--surface-2); border-radius: 8px; padding: 7px 8px; display: flex; flex-direction: column; gap: 2px; }
 .pstat__kpis b { font-family: var(--mono); font-weight: 600; font-size: 15px; }
 .pstat__kpis span { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.pstat__chart { position: relative; display: flex; align-items: stretch; gap: 3px; height: 96px; padding-bottom: 26px; }
-.pstat__col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
-.pstat__bar { width: 100%; background: var(--line-2); border-radius: 3px 3px 0 0; }
+/* last-5-games chart: value above each bar, opponent logo inside it, date below */
+.pstat__chart { position: relative; display: flex; align-items: flex-end; justify-content: space-around; gap: 6px; height: 136px; padding-top: 6px; }
+.pstat__col { flex: 1; max-width: 64px; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.pstat__val { font-family: var(--mono); font-weight: 600; font-size: 12px; margin-bottom: 3px; }
+.pstat__bar { width: 78%; background: var(--line-2); border-radius: 4px 4px 0 0; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; padding-bottom: 3px; }
 .pstat__bar.is-hit { background: var(--accent); }
-.pstat__val { position: absolute; top: -2px; font-family: var(--mono); font-size: 8px; color: var(--muted); }
-.pstat__opp { position: absolute; bottom: -22px; font-size: 7.5px; color: var(--muted); white-space: nowrap; }
-.pstat__line { position: absolute; left: 0; right: 0; margin-bottom: 26px; border-top: 1px dashed var(--amber); pointer-events: none; }
-.pstat__line span { position: absolute; right: 0; top: -13px; font-family: var(--mono); font-size: 9px; color: var(--amber); background: var(--surface); padding: 0 3px; }
+.pstat__bar img { width: 24px; height: 24px; flex: none; object-fit: contain; background: rgba(11, 12, 14, 0.6); border-radius: 50%; padding: 2px; }
+.pstat__date { height: 20px; line-height: 20px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.pstat__line { position: absolute; left: 0; right: 0; border-top: 2px solid var(--amber); pointer-events: none; z-index: 2; }
+.pstat__line span { position: absolute; right: 0; top: -17px; font-family: var(--mono); font-weight: 600; font-size: 11px; color: var(--amber); background: var(--surface); padding: 0 4px; border-radius: 3px; }
 .pstat__avgs { display: grid; gap: 1px; font-size: 12px; }
 .pstat__avgs > div { display: grid; grid-template-columns: 1fr 56px 56px; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); }
 .pstat__avgs > div:last-child { border-bottom: none; }

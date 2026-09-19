@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.8.0';
+const APP_VERSION = 'v0.9.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -52,6 +52,7 @@ const CONFIG = {
          "stat": "Receiving Yards",
          "line": 79.5,
          "pick": "over",              // "over" | "under" (legacy "more"/"less" still accepted)
+         "hitProb": 74,                  // optional: estimated % chance this leg hits (0-100); hidden when absent
          "reasoning": "2-3 sentences on why this pick",   // optional; hidden when absent
          "espnId": "4362628",         // optional -> headshot
          "headshot": null             // or a direct image URL, wins over espnId
@@ -106,7 +107,7 @@ async function fetchLeagues() {
 const REPLY_FORMAT =
   'REPLY FORMAT: one short sentence of summary, then END with a single ```json fenced block, nothing after it, no markdown tables. ' +
   'Shape: {"slips":[{"id":"slip-1","entryType":"flex"|"power","entry":<stake in dollars for this slip>,"multiplier":<payout multiplier>,"payout":<projected payout in dollars>,' +
-  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"over"|"under","reasoning":"<2-3 sentences on why this pick>"}]}]}.';
+  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"over"|"under","hitProb":<your estimated % chance this leg hits, 0-100>,"reasoning":"<2-3 sentences on why this pick>"}]}]}.';
 
 function buildAgentMessage(payload) {
   const parts = [
@@ -442,6 +443,13 @@ function slipCard(slip, index) {
 const isOverPick = (pick) => !['less', 'under'].includes(String(pick || 'over').toLowerCase());
 const pickLabel = (pick) => (isOverPick(pick) ? 'Over' : 'Under');
 
+// Agent's estimated chance a leg hits. Accepts 74, "74%" or 0.74; anything else -> ''.
+function hitPct(v) {
+  const n = Number(String(v ?? '').replace('%', ''));
+  if (v == null || v === '' || !Number.isFinite(n) || n < 0) return '';
+  return String(Math.min(100, Math.round(n <= 1 ? n * 100 : n)));
+}
+
 function legRow(leg) {
   const isMore = isOverPick(leg.pick);
   const arrow = isMore
@@ -455,7 +463,7 @@ function legRow(leg) {
 
   // Tapping a leg opens its stats panel (see togglePlayer). data-* carries what /api/player-stats needs.
   const data = `data-player="${escapeAttr(leg.player || '')}" data-league="${escapeAttr(leg.league || '')}" data-stat="${escapeAttr(leg.stat || '')}" ` +
-    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(isOverPick(leg.pick) ? 'over' : 'under')}" data-team="${escapeAttr(leg.team || '')}" data-why="${escapeAttr(why)}"`;
+    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(isOverPick(leg.pick) ? 'over' : 'under')}" data-team="${escapeAttr(leg.team || '')}" data-why="${escapeAttr(why)}" data-prob="${hitPct(leg.hitProb)}"`;
 
   return `<div class="leg-wrap">
   <div class="leg" role="button" tabindex="0" aria-expanded="false" ${data}>
@@ -540,10 +548,16 @@ function playerPanel(s, d) {
 
   // The bet itself, from the leg (so it shows even when there's no game log to compare)
   const over = isOverPick(d.pick);
+  const prob = d.prob !== '' && d.prob != null
+    ? `<div class="pstat__prob"><b>${escapeHtml(d.prob)}%</b><span>Hit chance</span></div>`
+    : '';
   const propRow = `<div class="pstat__proprow">
       <div><span>Prop</span><b>${escapeHtml(d.stat || '—')}</b></div>
-      <b class="pstat__propline">${d.line !== '' ? escapeHtml(d.line) : '—'}</b>
-      <b class="pstat__propdir ${over ? 'is-more' : 'is-less'}">${pickLabel(d.pick)}</b>
+      ${prob}
+      <div class="pstat__pick">
+        <b class="pstat__propline">${d.line !== '' ? escapeHtml(d.line) : '—'}</b>
+        <b class="pstat__propdir ${over ? 'is-more' : 'is-less'}">${pickLabel(d.pick)}</b>
+      </div>
     </div>`;
 
   const why = d.why
@@ -559,13 +573,15 @@ function playerPanel(s, d) {
   let body = '';
   const p = s.prop;
   if (p) {
-    const max = Math.max(...p.log.map((g) => g.v), p.line || 0) * 1.15 || 1;
-    const bars = p.log.map((g) => `<div class="pstat__col" title="${escapeAttr(`${g.date.slice(0, 10)} ${g.opp}`)}">
+    const log = p.log.slice(-5);
+    const PLOT = 90, DATE_H = 20; // px: bar area height, date label row (keep in sync with CSS)
+    const max = Math.max(...log.map((g) => g.v), p.line || 0) * 1.12 || 1;
+    const bars = log.map((g) => `<div class="pstat__col" title="${escapeAttr(`${g.date.slice(0, 10)} ${g.opp}`)}">
         <span class="pstat__val">${num(g.v)}</span>
-        <div class="pstat__bar ${g.hit ? 'is-hit' : ''}" style="height:${Math.max(3, (g.v / max) * 100)}%"></div>
-        <span class="pstat__opp">${escapeHtml(g.opp)}</span>
+        <div class="pstat__bar ${g.hit ? 'is-hit' : ''}" style="height:${Math.max(3, Math.round((g.v / max) * PLOT))}px">${oppLogo(d.league, g.oppAbbr)}</div>
+        <span class="pstat__date">${escapeHtml(g.date.slice(5, 10).replace('-', '/'))}</span>
       </div>`).join('');
-    const lineTop = p.line != null ? `<div class="pstat__line" style="bottom:${(p.line / max) * 100}%"><span>${escapeHtml(String(p.line))}</span></div>` : '';
+    const lineTop = p.line != null ? `<div class="pstat__line" style="bottom:${DATE_H + Math.round((p.line / max) * PLOT)}px"><span>${escapeHtml(String(p.line))}</span></div>` : '';
     body += `<div class="pstat__prop">
         <div class="pstat__kpis">
           <div><b>${num(p.seasonAvg)}</b><span>Season avg</span></div>
@@ -590,13 +606,23 @@ function playerPanel(s, d) {
 // (dark variant first, then the standard one) rather than shown broken.
 const LOGO_SLUG = { MLB: 'mlb', NFL: 'nfl', NBA: 'nba', NHL: 'nhl', WNBA: 'wnba' };
 const LOGO_ALIAS = { NOP: 'no', UTA: 'utah', NYK: 'ny', SAS: 'sa', GSW: 'gs', WAS: 'wsh', JAC: 'jax', TBL: 'tb', NJD: 'nj', SJS: 'sj', LAK: 'la' };
+const LOGO_ONERROR = "if(this.dataset.f){this.%REMOVE%}else{this.dataset.f=1;this.src=this.src.replace('500-dark','500')}";
+function logoSrc(league, team) {
+  const slug = LOGO_SLUG[String(league || '').toUpperCase()];
+  const abbr = String(team || '').toUpperCase();
+  if (!slug || !/^[A-Z]{2,4}$/.test(abbr)) return null;
+  return `https://a.espncdn.com/i/teamlogos/${slug}/500-dark/${LOGO_ALIAS[abbr] || abbr.toLowerCase()}.png`;
+}
 function teamLogo(leg, hero = false) {
-  const slug = LOGO_SLUG[String(leg.league || '').toUpperCase()];
-  const abbr = String(leg.team || '').toUpperCase();
-  if (!slug || !/^[A-Z]{2,4}$/.test(abbr)) return '';
-  const file = LOGO_ALIAS[abbr] || abbr.toLowerCase();
-  return `<span class="leg__team${hero ? ' leg__team--hero' : ''}"><img src="https://a.espncdn.com/i/teamlogos/${slug}/500-dark/${file}.png" alt="${escapeAttr(abbr)}" loading="lazy" ` +
-    `onerror="if(this.dataset.f){this.parentNode.remove()}else{this.dataset.f=1;this.src=this.src.replace('500-dark','500')}"></span>`;
+  const src = logoSrc(leg.league, leg.team);
+  if (!src) return '';
+  return `<span class="leg__team${hero ? ' leg__team--hero' : ''}"><img src="${src}" alt="${escapeAttr(leg.team)}" loading="lazy" ` +
+    `onerror="${LOGO_ONERROR.replace('%REMOVE%', 'parentNode.remove()')}"></span>`;
+}
+// Opponent logo for a chart bar; removed (not shown broken) if ESPN has no such file.
+function oppLogo(league, abbr) {
+  const src = logoSrc(league, abbr);
+  return src ? `<img src="${src}" alt="" onerror="${LOGO_ONERROR.replace('%REMOVE%', 'remove()')}">` : '';
 }
 
 const SILHOUETTE = '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="18" r="8.5" fill="currentColor"></circle><path d="M8 48c0-8.8 7.2-14.5 16-14.5S40 39.2 40 48z" fill="currentColor"></path></svg>';
