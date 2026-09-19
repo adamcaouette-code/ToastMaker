@@ -20,11 +20,7 @@ exports.handler = async () => {
     const { data = [] } = await res.json();
     const leagues = data.filter((l) => l.enabled !== false).map((l) => l.leagueID);
 
-    return {
-      statusCode: 200,
-      headers: { "cache-control": "public, max-age=3600" },
-      body: JSON.stringify({ leagues }),
-    };
+    return { statusCode: 200, body: JSON.stringify({ leagues }) };
   } catch (err) {
     console.error(err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
