@@ -569,7 +569,8 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   border-radius: 10px;
 }
 .leg-wrap.is-open .leg__name { color: var(--accent); }
-.leg-wrap.is-open .leg > .avatar { display: none; }
+.leg-wrap.is-open .leg > .avatar,
+.leg-wrap.is-open .leg > .leg__team { display: none; }
 .avatar {
   /* no circle/border/background: the ESPN cutout shows uncropped (they're ~4:3) */
   width: 68px; height: 50px;
@@ -806,6 +807,7 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 /* ---------- player stats dropdown ---------- */
 .leg__panel { padding: 4px 0 14px; }
 .pstat__head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.leg__team--hero { width: 120px; height: 120px; margin-left: auto; align-self: center; }
 .pstat__shot { width: 148px; height: 111px; }
 .pstat__shot svg { width: 80px; height: 80px; }
 .pstat__name { font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1.05; }

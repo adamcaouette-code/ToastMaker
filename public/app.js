@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.6.1';
+const APP_VERSION = 'v0.7.0';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -51,7 +51,7 @@ const CONFIG = {
          "opponent": "vs BAL",
          "stat": "Receiving Yards",
          "line": 79.5,
-         "pick": "more",              // "more" | "less"
+         "pick": "over",              // "over" | "under" (legacy "more"/"less" still accepted)
          "espnId": "4362628",         // optional -> headshot
          "headshot": null             // or a direct image URL, wins over espnId
        }]
@@ -105,7 +105,7 @@ async function fetchLeagues() {
 const REPLY_FORMAT =
   'REPLY FORMAT: one short sentence of summary, then END with a single ```json fenced block, nothing after it, no markdown tables. ' +
   'Shape: {"slips":[{"id":"slip-1","entryType":"flex"|"power","entry":<stake in dollars for this slip>,"multiplier":<payout multiplier>,"payout":<projected payout in dollars>,' +
-  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"more"|"less"}]}]}.';
+  '"note":"<1-2 sentences on why>","legs":[{"player":"","league":"MLB","team":"CHC","opponent":"vs CIN","stat":"Hits","line":0.5,"pick":"over"|"under"}]}]}.';
 
 function buildAgentMessage(payload) {
   const parts = [
@@ -436,8 +436,13 @@ function slipCard(slip, index) {
   </article>`;
 }
 
+// PrizePicks wording is Over/Under. Accepts the legacy more/less too, so older
+// agent output and memory records display the same way.
+const isOverPick = (pick) => !['less', 'under'].includes(String(pick || 'over').toLowerCase());
+const pickLabel = (pick) => (isOverPick(pick) ? 'Over' : 'Under');
+
 function legRow(leg) {
-  const isMore = (leg.pick || 'more').toLowerCase() === 'more';
+  const isMore = isOverPick(leg.pick);
   const arrow = isMore
     ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10V2"></path><path d="M2.5 5.5L6 2l3.5 3.5"></path></svg>'
     : '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v8"></path><path d="M2.5 6.5L6 10l3.5-3.5"></path></svg>';
@@ -447,7 +452,7 @@ function legRow(leg) {
 
   // Tapping a leg opens its stats panel (see togglePlayer). data-* carries what /api/player-stats needs.
   const data = `data-player="${escapeAttr(leg.player || '')}" data-league="${escapeAttr(leg.league || '')}" data-stat="${escapeAttr(leg.stat || '')}" ` +
-    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(leg.pick || 'more')}" data-team="${escapeAttr(leg.team || '')}"`;
+    `data-line="${escapeAttr(leg.line != null ? String(leg.line) : '')}" data-pick="${escapeAttr(isOverPick(leg.pick) ? 'over' : 'under')}" data-team="${escapeAttr(leg.team || '')}"`;
 
   return `<div class="leg-wrap">
   <div class="leg" role="button" tabindex="0" aria-expanded="false" ${data}>
@@ -459,7 +464,7 @@ function legRow(leg) {
     ${teamLogo(leg)}
     <div class="leg__pick">
       <span class="leg__line">${leg.line != null ? escapeHtml(String(leg.line)) : '—'}</span>
-      <span class="leg__dir ${isMore ? 'is-more' : 'is-less'}">${arrow}${isMore ? 'More' : 'Less'}</span>
+      <span class="leg__dir ${isMore ? 'is-more' : 'is-less'}">${arrow}${pickLabel(leg.pick)}</span>
     </div>
   </div>
   <div class="leg__panel" hidden></div>
@@ -519,6 +524,7 @@ function playerPanel(s, d) {
       <span class="pstat__shot avatar">${shot}</span>
       <div><div class="pstat__name">${escapeHtml(s.player || d.player)}</div>
       <div class="pstat__sub">${escapeHtml([d.team, d.league].filter(Boolean).join(' · '))}${s.gamesPlayed ? ` · ${s.gamesPlayed} game${s.gamesPlayed === 1 ? '' : 's'}` : ''}</div></div>
+      ${teamLogo({ league: d.league, team: d.team }, true)}
     </div>`;
 
   if (!s.matched) {
@@ -537,7 +543,7 @@ function playerPanel(s, d) {
       </div>`).join('');
     const lineTop = p.line != null ? `<div class="pstat__line" style="bottom:${(p.line / max) * 100}%"><span>${escapeHtml(String(p.line))}</span></div>` : '';
     body += `<div class="pstat__prop">
-        <div class="pstat__proptitle">${escapeHtml(p.stat)} · line ${num(p.line)} · ${p.pick === 'less' ? 'Less' : 'More'}</div>
+        <div class="pstat__proptitle">${escapeHtml(p.stat)} · line ${num(p.line)} · ${pickLabel(p.pick)}</div>
         <div class="pstat__kpis">
           <div><b>${num(p.seasonAvg)}</b><span>Season avg</span></div>
           <div><b>${num(p.last5Avg)}</b><span>Last 5 avg</span></div>
@@ -560,12 +566,12 @@ function playerPanel(s, d) {
 // (dark variant first, then the standard one) rather than shown broken.
 const LOGO_SLUG = { MLB: 'mlb', NFL: 'nfl', NBA: 'nba', NHL: 'nhl', WNBA: 'wnba' };
 const LOGO_ALIAS = { NOP: 'no', UTA: 'utah', NYK: 'ny', SAS: 'sa', GSW: 'gs', WAS: 'wsh', JAC: 'jax', TBL: 'tb', NJD: 'nj', SJS: 'sj', LAK: 'la' };
-function teamLogo(leg) {
+function teamLogo(leg, hero = false) {
   const slug = LOGO_SLUG[String(leg.league || '').toUpperCase()];
   const abbr = String(leg.team || '').toUpperCase();
   if (!slug || !/^[A-Z]{2,4}$/.test(abbr)) return '';
   const file = LOGO_ALIAS[abbr] || abbr.toLowerCase();
-  return `<span class="leg__team"><img src="https://a.espncdn.com/i/teamlogos/${slug}/500-dark/${file}.png" alt="${escapeAttr(abbr)}" loading="lazy" ` +
+  return `<span class="leg__team${hero ? ' leg__team--hero' : ''}"><img src="https://a.espncdn.com/i/teamlogos/${slug}/500-dark/${file}.png" alt="${escapeAttr(abbr)}" loading="lazy" ` +
     `onerror="if(this.dataset.f){this.parentNode.remove()}else{this.dataset.f=1;this.src=this.src.replace('500-dark','500')}"></span>`;
 }
 
@@ -780,7 +786,7 @@ function resultLine(leg) {
   return `<div class="result-line">
     <span class="result-line__icon ${cls}">${icons[status] || icons.open}</span>
     <span class="result-line__name">${escapeHtml(leg.player || '')}</span>
-    <span class="result-line__pick">${escapeHtml((leg.pick || '').toUpperCase())} ${escapeHtml(String(leg.line ?? ''))}</span>
+    <span class="result-line__pick">${escapeHtml(leg.pick ? pickLabel(leg.pick).toUpperCase() : '')} ${escapeHtml(String(leg.line ?? ''))}</span>
     <span class="result-line__val" style="color:${color}">${leg.result != null ? escapeHtml(String(leg.result)) : '—'}</span>
   </div>`;
 }
@@ -914,12 +920,12 @@ const escapeAttr = escapeHtml;
 
 function mockSlips(payload) {
   const pool = [
-    { player: "Ja'Marr Chase", league: 'NFL', team: 'CIN', opponent: 'vs BAL', stat: 'Receiving Yards', line: 79.5, pick: 'more', espnId: '4362628' },
-    { player: 'Bijan Robinson', league: 'NFL', team: 'ATL', opponent: 'at CAR', stat: 'Rushing Yards', line: 71.5, pick: 'more', espnId: '4430807' },
-    { player: 'Justin Jefferson', league: 'NFL', team: 'MIN', opponent: 'vs GB', stat: 'Receptions', line: 6.5, pick: 'less', espnId: '4262921' },
-    { player: 'Shohei Ohtani', league: 'MLB', team: 'LAD', opponent: 'vs SD', stat: 'Total Bases', line: 1.5, pick: 'more', espnId: '39832' },
-    { player: 'Aaron Judge', league: 'MLB', team: 'NYY', opponent: 'at BOS', stat: 'Home Runs', line: 0.5, pick: 'more', espnId: '33192' },
-    { player: 'Patrick Mahomes', league: 'NFL', team: 'KC', opponent: 'at DEN', stat: 'Passing Yards', line: 271.5, pick: 'less', espnId: '3139477' },
+    { player: "Ja'Marr Chase", league: 'NFL', team: 'CIN', opponent: 'vs BAL', stat: 'Receiving Yards', line: 79.5, pick: 'over', espnId: '4362628' },
+    { player: 'Bijan Robinson', league: 'NFL', team: 'ATL', opponent: 'at CAR', stat: 'Rushing Yards', line: 71.5, pick: 'over', espnId: '4430807' },
+    { player: 'Justin Jefferson', league: 'NFL', team: 'MIN', opponent: 'vs GB', stat: 'Receptions', line: 6.5, pick: 'under', espnId: '4262921' },
+    { player: 'Shohei Ohtani', league: 'MLB', team: 'LAD', opponent: 'vs SD', stat: 'Total Bases', line: 1.5, pick: 'over', espnId: '39832' },
+    { player: 'Aaron Judge', league: 'MLB', team: 'NYY', opponent: 'at BOS', stat: 'Home Runs', line: 0.5, pick: 'over', espnId: '33192' },
+    { player: 'Patrick Mahomes', league: 'NFL', team: 'KC', opponent: 'at DEN', stat: 'Passing Yards', line: 271.5, pick: 'under', espnId: '3139477' },
   ];
 
   const table = { flex: { 2: 3, 3: 2.25, 4: 5, 5: 10, 6: 25 }, power: { 2: 3, 3: 5, 4: 10, 5: 20, 6: 37.5 } };
@@ -946,24 +952,24 @@ function mockHistory() {
     {
       id: 'h1', date: 'Sun Sep 14', league: 'NFL', entryType: 'flex', entry: 25, multiplier: 1.25, payout: 31.25, status: 'won',
       legs: [
-        { player: "Ja'Marr Chase", pick: 'more', line: 79.5, result: 112, status: 'hit' },
-        { player: 'Justin Jefferson', pick: 'less', line: 6.5, result: 5, status: 'hit' },
-        { player: 'Bijan Robinson', pick: 'more', line: 71.5, result: 64, status: 'miss' },
+        { player: "Ja'Marr Chase", pick: 'over', line: 79.5, result: 112, status: 'hit' },
+        { player: 'Justin Jefferson', pick: 'under', line: 6.5, result: 5, status: 'hit' },
+        { player: 'Bijan Robinson', pick: 'over', line: 71.5, result: 64, status: 'miss' },
       ],
     },
     {
       id: 'h2', date: 'Sat Sep 13', league: 'NFL', entryType: 'power', entry: 10, multiplier: 3, payout: 0, status: 'lost',
       legs: [
-        { player: 'Patrick Mahomes', pick: 'more', line: 271.5, result: 248, status: 'miss' },
-        { player: 'Puka Nacua', pick: 'more', line: 68.5, result: 91, status: 'hit' },
+        { player: 'Patrick Mahomes', pick: 'over', line: 271.5, result: 248, status: 'miss' },
+        { player: 'Puka Nacua', pick: 'over', line: 68.5, result: 91, status: 'hit' },
       ],
     },
     {
       id: 'h3', date: 'Today', league: 'MLB', entryType: 'flex', entry: 15, multiplier: 2.25, payout: 0, status: 'pending',
       legs: [
-        { player: 'Shohei Ohtani', pick: 'more', line: 1.5, result: null, status: 'open' },
-        { player: 'Aaron Judge', pick: 'more', line: 0.5, result: null, status: 'open' },
-        { player: 'Gunnar Henderson', pick: 'less', line: 1.5, result: null, status: 'open' },
+        { player: 'Shohei Ohtani', pick: 'over', line: 1.5, result: null, status: 'open' },
+        { player: 'Aaron Judge', pick: 'over', line: 0.5, result: null, status: 'open' },
+        { player: 'Gunnar Henderson', pick: 'under', line: 1.5, result: null, status: 'open' },
       ],
     },
   ];

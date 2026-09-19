@@ -94,12 +94,12 @@ export function buildCard({ games, names, labels }, { stat, line, pick }) {
       .filter((g) => Number.isFinite(g.v));
     if (series.length) {
       const last = series.slice(-RECENT);
-      const dir = String(pick || "more").toLowerCase() === "less" ? -1 : 1;
+      const dir = ["less", "under"].includes(String(pick || "over").toLowerCase()) ? -1 : 1;
       const hit = (v) => (Number.isFinite(line) ? dir * (v - line) > 0 : false);
       prop = {
         stat,
         line: Number.isFinite(line) ? line : null,
-        pick: dir === -1 ? "less" : "more",
+        pick: dir === -1 ? "under" : "over",
         seasonAvg: round(mean(series.map((g) => g.v)), 2),
         last5Avg: round(mean(series.slice(-5).map((g) => g.v)), 2),
         games: series.length,
