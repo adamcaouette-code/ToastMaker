@@ -807,11 +807,12 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
 /* ---------- player stats dropdown ---------- */
 .leg__panel { padding: 4px 0 14px; }
 .pstat__head { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
-.leg__team--hero { width: 120px; height: 120px; margin-left: auto; align-self: center; }
-.pstat__shot { width: 148px; height: 111px; }
+.leg__team--hero { flex: 0 1 120px; width: 120px; min-width: 56px; height: 120px; margin-left: auto; align-self: center; }
+.pstat__head > div { flex: 1 1 104px; min-width: 104px; }
+.pstat__shot { flex: 0 1 148px; width: 148px; min-width: 80px; height: 111px; }
 .pstat__shot svg { width: 80px; height: 80px; }
-.pstat__name { font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1.05; }
-.pstat__sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.pstat__name { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; }
+.pstat__sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .pstat__msg { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 .pstat__prop { margin-bottom: 12px; }
 .pstat__proptitle { font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
