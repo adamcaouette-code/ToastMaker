@@ -8,7 +8,7 @@
    ============================================================ */
 
 // Bump on every deploy. Shown top-right and appended to every agent prompt.
-const APP_VERSION = 'v0.5.0';
+const APP_VERSION = 'v0.5.1';
 
 const CONFIG = {
   // Flip to false once your endpoints are live.
@@ -323,6 +323,15 @@ async function onSubmit(event) {
   } finally {
     setGenerating(false);
   }
+}
+
+// Renders sample slips through the normal card path. No agent, Anthropic or
+// PrizePicks call, so it costs nothing (headshots still resolve via free ESPN).
+function onDemo() {
+  if (state.generating) return;
+  $('#form-error').hidden = true;
+  const payload = buildPayload();
+  renderResults(mockSlips(payload), payload);
 }
 
 function setGenerating(on) {
@@ -721,6 +730,7 @@ function initControls() {
 
   // Form
   $('#slip-form').addEventListener('submit', onSubmit);
+  $('#demo-btn').addEventListener('click', onDemo);
 
   // Tabs
   $$('.tab').forEach((tab) => {

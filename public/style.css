@@ -414,6 +414,21 @@ input[name="entryType"]:focus-visible + .segmented__opt { outline: 2px solid var
   gap: 9px;
 }
 .cta:disabled { opacity: 0.72; }
+.demo-btn {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 40px;
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
 .cta .spinner { display: none; }
 .cta.is-loading .spinner {
   display: block;
